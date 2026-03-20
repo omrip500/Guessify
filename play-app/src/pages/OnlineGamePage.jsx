@@ -26,7 +26,6 @@ const OnlineGamePage = () => {
   // Waiting room state
   const [players, setPlayers] = useState(initState.players || []);
   const [gameStarted, setGameStarted] = useState(false);
-  const [autoStartCountdown, setAutoStartCountdown] = useState(null);
 
   // Game state
   const [guess, setGuess] = useState("");
@@ -45,6 +44,13 @@ const OnlineGamePage = () => {
   const [statusMsg, setStatusMsg] = useState("");
   const [currentSongTitle, setCurrentSongTitle] = useState("");
   const [leaderboard, setLeaderboard] = useState(null);
+  const [myStatsResult, setMyStatsResult] = useState(null);
+
+  // Enhanced feedback state
+  const [roundResult, setRoundResult] = useState(null); // { type: 'success'|'failed', songTitle, songArtist, songArtworkUrl, playerAnswers, scores, isReplay }
+  const [betweenRoundCountdown, setBetweenRoundCountdown] = useState(null);
+  const [liveScores, setLiveScores] = useState({});
+  const [getReadyCountdown, setGetReadyCountdown] = useState(null);
 
   // Invite friends state
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -56,6 +62,8 @@ const OnlineGamePage = () => {
   const audioRef = useRef(null);
   const timeoutRef = useRef(null);
   const timerInterval = useRef(null);
+  const countdownInterval = useRef(null);
+  const liveScoresRef = useRef({});
 
   // Redirect if no state
   useEffect(() => {
@@ -95,26 +103,30 @@ const OnlineGamePage = () => {
       setPlayers(updatedPlayers);
     });
 
-    socket.on("onlineAutoStartCountdown", ({ seconds }) => {
-      setAutoStartCountdown(seconds);
-    });
-
-    socket.on("onlineAutoStartCancelled", () => {
-      setAutoStartCountdown(null);
-    });
-
     socket.on("onlineGameStarting", ({ totalSongs: total, guessTimeLimit }) => {
       setGameStarted(true);
       setTotalSongs(total);
       setMaxTime(guessTimeLimit);
-      setStatusMsg("Game is starting!");
+      setStatusMsg("Get ready!");
+      // Show 3-2-1 countdown
+      setGetReadyCountdown(3);
+      let count = 3;
+      const interval = setInterval(() => {
+        count--;
+        if (count <= 0) {
+          clearInterval(interval);
+          setGetReadyCountdown(null);
+        } else {
+          setGetReadyCountdown(count);
+        }
+      }, 700);
     });
 
     // --- Game Events (reused from existing flow) ---
     socket.on(
       "nextRound",
       ({ audioUrl, roundNumber, songNumber: sNum, totalSongs: total, duration, currentSong }) => {
-        setStatusMsg(`Round ${roundNumber} - Song is playing...`);
+        setStatusMsg(`Song ${sNum} of ${total} — Listen carefully!`);
         setHasGuessedThisRound(false);
         setIsWaitingBetweenRounds(false);
         setRoundFailedForUser(false);
@@ -125,6 +137,14 @@ const OnlineGamePage = () => {
         setAnswerDetails(null);
         setIsAudioPlaying(true);
         setGuess("");
+        // Clear between-round state
+        setRoundResult(null);
+        setBetweenRoundCountdown(null);
+        setGetReadyCountdown(null);
+        if (countdownInterval.current) {
+          clearInterval(countdownInterval.current);
+          countdownInterval.current = null;
+        }
 
         if (currentSong && currentSong.title) {
           setCurrentSongTitle(currentSong.title);
@@ -162,7 +182,7 @@ const OnlineGamePage = () => {
     socket.on("timerStarted", ({ roundDeadline, guessTimeLimit }) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-      setStatusMsg("Listen and guess!");
+      setStatusMsg("Time to guess! Type your answer");
       setIsAudioPlaying(false);
 
       const now = Date.now();
@@ -213,22 +233,75 @@ const OnlineGamePage = () => {
       setTimeLeft(null);
     });
 
-    socket.on("roundSucceeded", () => {
-      setStatusMsg("Someone got it! Next song coming up...");
+    socket.on("roundSucceeded", ({ scores, playerEmojis, songTitle, songArtist, songArtworkUrl, playerAnswers }) => {
+      setStatusMsg("Correct! Next song coming up...");
       setHasGuessedThisRound(true);
       setIsWaitingBetweenRounds(true);
       setRoundFailedForUser(false);
+      if (scores) { setLiveScores(scores); liveScoresRef.current = scores; }
+
+      // Store round result for rich interstitial
+      setRoundResult({
+        type: "success",
+        songTitle: songTitle || "",
+        songArtist: songArtist || "",
+        songArtworkUrl: songArtworkUrl || "",
+        playerAnswers: playerAnswers || {},
+        playerEmojis: playerEmojis || {},
+        scores: scores || {},
+      });
+
+      // Start between-round countdown (backend gap is ~6s)
+      setBetweenRoundCountdown(5);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+      countdownInterval.current = setInterval(() => {
+        setBetweenRoundCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
       if (timerInterval.current) clearInterval(timerInterval.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setTimeLeft(null);
     });
 
-    socket.on("roundFailed", () => {
-      setStatusMsg("No one guessed it. Moving on...");
+    socket.on("roundFailed", ({ songTitle, songArtist, songArtworkUrl, playerAnswers, allRoundsUsed }) => {
+      const isReplay = !allRoundsUsed;
+      setStatusMsg(isReplay ? "Playing a longer snippet..." : "No one guessed it!");
       setHasGuessedThisRound(true);
       setIsWaitingBetweenRounds(true);
       setRoundFailedForUser(true);
+
+      // Store round result for interstitial (only show full reveal if all rounds used = moving to next song)
+      setRoundResult({
+        type: "failed",
+        isReplay,
+        songTitle: songTitle || "",
+        songArtist: songArtist || "",
+        songArtworkUrl: songArtworkUrl || "",
+        playerAnswers: playerAnswers || {},
+        scores: liveScoresRef.current,
+      });
+
+      // Start countdown (shorter for replay since backend gap is 4s, longer for next song = 6s)
+      const countdownStart = isReplay ? 3 : 5;
+      setBetweenRoundCountdown(countdownStart);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
+      countdownInterval.current = setInterval(() => {
+        setBetweenRoundCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval.current);
+            countdownInterval.current = null;
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
       if (timerInterval.current) clearInterval(timerInterval.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -236,16 +309,23 @@ const OnlineGamePage = () => {
     });
 
     socket.on("correctAnswer", ({ scores, username: correctUser, score, answerType }) => {
+      if (scores) { setLiveScores(scores); liveScoresRef.current = scores; }
       // Someone answered correctly - show notification
       if (correctUser !== username) {
-        toast.info(`${correctUser} scored ${score} points!`, { autoClose: 2000 });
+        const typeLabel = answerType === "songTitle" ? "song name" : answerType === "artist" ? "artist" : answerType === "lyrics" ? "lyrics" : "answer";
+        toast.info(`${correctUser} guessed the ${typeLabel}! +${score} pts`, { autoClose: 2500 });
       }
     });
 
-    socket.on("gameOver", ({ leaderboard: lb }) => {
+    socket.on("gameOver", ({ leaderboard: lb, statsResults }) => {
       setStatusMsg("Game over! Thanks for playing.");
       setIsGameOver(true);
       setLeaderboard(lb);
+
+      // Extract current user's stats result
+      if (statsResults && user?._id && statsResults[user._id]) {
+        setMyStatsResult(statsResults[user._id]);
+      }
 
       if (timerInterval.current) clearInterval(timerInterval.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -261,8 +341,6 @@ const OnlineGamePage = () => {
 
     return () => {
       socket.off("onlinePlayerUpdate");
-      socket.off("onlineAutoStartCountdown");
-      socket.off("onlineAutoStartCancelled");
       socket.off("onlineGameStarting");
       socket.off("nextRound");
       socket.off("timerStarted");
@@ -275,6 +353,7 @@ const OnlineGamePage = () => {
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (timerInterval.current) clearInterval(timerInterval.current);
+      if (countdownInterval.current) clearInterval(countdownInterval.current);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -353,7 +432,7 @@ const OnlineGamePage = () => {
               <div className="text-4xl mb-2">🌐</div>
               <h2 className="text-2xl font-bold text-white">{gameTitle}</h2>
               <p className="text-purple-200 text-sm mt-1">
-                Room Code: <span className="font-mono font-bold text-white">{roomCode}</span>
+                Game Code: <span className="font-mono font-bold text-white">{roomCode}</span>
               </p>
               <p className="text-purple-200 text-sm">
                 🎵 {songCount} songs
@@ -372,7 +451,7 @@ const OnlineGamePage = () => {
             {/* Your info */}
             <div className="bg-purple-600 bg-opacity-30 rounded-xl p-3 mb-4">
               <p className="text-white font-semibold">
-                {emoji} {username} {isCreator && "(Host)"}
+                {emoji} {username}
               </p>
             </div>
 
@@ -392,7 +471,7 @@ const OnlineGamePage = () => {
                     </span>
                     {p.isCreator && (
                       <span className="text-yellow-300 text-xs font-bold">
-                        HOST
+                        CREATOR
                       </span>
                     )}
                   </div>
@@ -400,40 +479,18 @@ const OnlineGamePage = () => {
               </div>
             </div>
 
-            {/* Auto-start countdown */}
-            {autoStartCountdown !== null && autoStartCountdown > 0 && (
-              <div className="bg-green-500 bg-opacity-20 rounded-xl p-3 mb-4 border border-green-400 border-opacity-30">
-                <p className="text-green-200 font-semibold">
-                  Game starting in {autoStartCountdown}s...
-                </p>
-              </div>
-            )}
-
-            {/* Waiting message or Start button */}
-            {players.length < 2 ? (
-              <div className="bg-yellow-500 bg-opacity-20 rounded-xl p-4 border border-yellow-400 border-opacity-30">
-                <div className="flex justify-center space-x-2 mb-2">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                </div>
-                <p className="text-yellow-200 text-sm">
-                  Waiting for more players to join... (need at least 2)
-                </p>
-              </div>
-            ) : isCreator ? (
+            {/* Start button or waiting message */}
+            {isCreator ? (
               <button
                 onClick={handleStartGame}
                 className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 rounded-xl hover:from-green-400 hover:to-emerald-400 transition-all transform hover:scale-105 shadow-lg text-lg"
               >
-                Start Game Now
+                Start Game
               </button>
             ) : (
               <div className="bg-blue-500 bg-opacity-20 rounded-xl p-4 border border-blue-400 border-opacity-30">
                 <p className="text-blue-200 text-sm">
-                  {autoStartCountdown
-                    ? `Game will auto-start in ${autoStartCountdown}s`
-                    : "Waiting for host to start the game..."}
+                  Waiting for creator to start...
                 </p>
               </div>
             )}
@@ -546,8 +603,13 @@ const OnlineGamePage = () => {
 
   // --- Game Over UI ---
   if (isGameOver && leaderboard) {
+    const xpProgress = myStatsResult
+      ? ((myStatsResult.totalXP - myStatsResult.xpForCurrentLevel) /
+          Math.max(1, myStatsResult.xpForNextLevel - myStatsResult.xpForCurrentLevel)) * 100
+      : 0;
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4 py-6 relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-48 h-48 bg-yellow-400 opacity-20 rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-20 right-10 w-64 h-64 bg-pink-400 opacity-10 rounded-full blur-3xl animate-pulse"></div>
@@ -555,11 +617,50 @@ const OnlineGamePage = () => {
 
         <div className="relative z-10 w-full max-w-lg text-center">
           <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-6 border border-white border-opacity-20 shadow-2xl">
-            <div className="text-5xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-white mb-6">Game Over!</h2>
+            <div className="text-5xl mb-3">🏆</div>
+            <h2 className="text-3xl font-bold text-white mb-4">Game Over!</h2>
+
+            {/* XP / Level Section */}
+            {myStatsResult && (
+              <div className="mb-5">
+                {/* Level Up Celebration */}
+                {myStatsResult.leveledUp && (
+                  <div className="bg-yellow-500 bg-opacity-20 border border-yellow-400 border-opacity-40 rounded-xl p-3 mb-3 animate-pulse">
+                    <p className="text-yellow-200 font-bold text-lg">
+                      🎉 Level Up! You reached Level {myStatsResult.newLevel}!
+                    </p>
+                    <p className="text-yellow-300 text-sm">{myStatsResult.levelTitle}</p>
+                  </div>
+                )}
+
+                <div className="bg-white bg-opacity-5 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                        {myStatsResult.newLevel}
+                      </div>
+                      <span className="text-purple-200 text-sm">{myStatsResult.levelTitle}</span>
+                    </div>
+                    <div className="bg-green-500 bg-opacity-30 border border-green-400 border-opacity-30 px-2.5 py-1 rounded-lg">
+                      <span className="text-green-300 font-bold text-sm">+{myStatsResult.xpEarned} XP</span>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-white bg-opacity-10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(100, Math.round(xpProgress))}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-purple-300 mt-1">
+                    <span>{myStatsResult.totalXP} XP</span>
+                    <span>Level {myStatsResult.newLevel + 1}: {myStatsResult.xpForNextLevel} XP</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Leaderboard */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-2 mb-5">
               {leaderboard.map((entry) => {
                 const medals = ["🥇", "🥈", "🥉"];
                 const isMe = entry.username === username;
@@ -604,6 +705,163 @@ const OnlineGamePage = () => {
                 Home
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- "Get Ready" Countdown Overlay ---
+  if (getReadyCountdown !== null) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-48 h-48 bg-purple-400 opacity-20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-64 h-64 bg-pink-400 opacity-10 rounded-full blur-3xl animate-pulse"></div>
+        </div>
+        <div className="relative z-10 text-center">
+          <p className="text-purple-200 text-lg mb-4 font-semibold">Get Ready!</p>
+          <div className="text-8xl font-bold text-white animate-bounce">{getReadyCountdown}</div>
+          <p className="text-purple-300 text-sm mt-6">{totalSongs} songs to guess</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Between Rounds Interstitial ---
+  if (isWaitingBetweenRounds && roundResult && !isGameOver) {
+    const isReplay = roundResult.type === "failed" && roundResult.isReplay;
+    const isSuccess = roundResult.type === "success";
+    const showAnswer = !isReplay; // Don't reveal answer if replaying with longer snippet
+
+    // Sort scores for mini-leaderboard
+    const sortedScores = Object.entries(roundResult.scores || liveScores)
+      .sort((a, b) => b[1] - a[1]);
+
+    // Get player emojis from players list
+    const playerEmojiMap = {};
+    players.forEach((p) => { playerEmojiMap[p.username] = p.emoji; });
+    if (roundResult.playerEmojis) {
+      Object.assign(playerEmojiMap, roundResult.playerEmojis);
+    }
+
+    return (
+      <div className="h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-48 h-48 bg-purple-400 opacity-20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-64 h-64 bg-pink-400 opacity-10 rounded-full blur-3xl animate-pulse"></div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-lg">
+          <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-5 border border-white border-opacity-20 shadow-2xl text-center">
+
+            {/* Song Progress */}
+            <div className="flex items-center justify-center mb-3">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg">
+                SONG {songNumber} OF {totalSongs}
+              </div>
+            </div>
+
+            {/* Result Header */}
+            {isReplay ? (
+              <div className="mb-4">
+                <div className="text-4xl mb-2">🔄</div>
+                <p className="text-yellow-200 font-bold text-xl">No one got it!</p>
+                <p className="text-yellow-300 text-sm">Playing a longer snippet...</p>
+              </div>
+            ) : isSuccess ? (
+              <div className="mb-4">
+                <div className="text-4xl mb-2">🎉</div>
+                <p className="text-green-200 font-bold text-xl">Round Complete!</p>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="text-4xl mb-2">😔</div>
+                <p className="text-red-200 font-bold text-xl">Nobody guessed it!</p>
+              </div>
+            )}
+
+            {/* Answer Reveal (only when moving to next song) */}
+            {showAnswer && roundResult.songTitle && (
+              <div className={`rounded-2xl p-4 mb-4 border ${isSuccess
+                ? "bg-green-500 bg-opacity-15 border-green-400 border-opacity-30"
+                : "bg-red-500 bg-opacity-15 border-red-400 border-opacity-30"
+              }`}>
+                <p className="text-purple-200 text-xs uppercase tracking-wide mb-2">The answer was</p>
+                <div className="flex items-center justify-center gap-3">
+                  {roundResult.songArtworkUrl && (
+                    <img
+                      src={roundResult.songArtworkUrl}
+                      alt=""
+                      className="w-14 h-14 rounded-xl shadow-lg"
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                  )}
+                  <div className="text-left">
+                    <p className="text-white font-bold text-lg leading-tight">{roundResult.songTitle}</p>
+                    {roundResult.songArtist && (
+                      <p className="text-purple-200 text-sm">{roundResult.songArtist}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Player Answers Summary */}
+            {showAnswer && roundResult.playerAnswers && Object.keys(roundResult.playerAnswers).length > 0 && (
+              <div className="bg-white bg-opacity-5 rounded-xl p-3 mb-4">
+                <p className="text-purple-300 text-xs uppercase tracking-wide mb-2">Player Answers</p>
+                <div className="space-y-1.5">
+                  {Object.entries(roundResult.playerAnswers).map(([playerName, data]) => (
+                    <div key={playerName} className="flex items-center justify-between text-sm">
+                      <span className="text-white">
+                        {playerEmojiMap[playerName] || "🎮"} {playerName}
+                      </span>
+                      <span className={data.isCorrect ? "text-green-300 font-bold" : "text-red-300"}>
+                        {data.isCorrect ? `+${data.score} pts` : (data.answer ? `"${data.answer.slice(0, 20)}"` : "—")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Live Scoreboard */}
+            {sortedScores.length > 0 && (
+              <div className="bg-white bg-opacity-5 rounded-xl p-3 mb-4">
+                <p className="text-purple-300 text-xs uppercase tracking-wide mb-2">Scoreboard</p>
+                <div className="space-y-1.5">
+                  {sortedScores.slice(0, 5).map(([playerName, score], i) => {
+                    const medals = ["🥇", "🥈", "🥉"];
+                    const isMe = playerName === username;
+                    return (
+                      <div
+                        key={playerName}
+                        className={`flex items-center justify-between text-sm px-2 py-1 rounded-lg ${
+                          isMe ? "bg-yellow-500 bg-opacity-20" : ""
+                        }`}
+                      >
+                        <span className="text-white">
+                          {medals[i] || `#${i + 1}`} {playerEmojiMap[playerName] || ""} {playerName}
+                          {isMe && <span className="text-yellow-300 text-xs ml-1">(You)</span>}
+                        </span>
+                        <span className="text-yellow-300 font-bold">{score}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Countdown to next */}
+            {betweenRoundCountdown !== null && (
+              <div className="flex items-center justify-center gap-2 text-purple-200 text-sm">
+                <div className="w-8 h-8 bg-white bg-opacity-10 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                  {betweenRoundCountdown}
+                </div>
+                <span>{isReplay ? "Replaying in..." : "Next song in..."}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

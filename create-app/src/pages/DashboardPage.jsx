@@ -3,21 +3,26 @@ import PageLayout from "../components/PageLayout";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { BASE_URL, PLAY_APP_URL } from "../constants";
+import { useGetMyStatsQuery } from "../slices/statsApiSlice";
 import {
   FaPlus,
   FaChartLine,
   FaGamepad,
   FaUsers,
-  FaMusic,
   FaArrowRight,
   FaUserFriends,
   FaGlobe,
   FaEnvelopeOpenText,
   FaList,
+  FaTrophy,
+  FaUser,
+  FaMedal,
+  FaFire,
 } from "react-icons/fa";
 
 const DashboardPage = () => {
   const { userInfo } = useSelector((state) => state.auth);
+  const { data: myStats } = useGetMyStatsQuery();
   const [friendsCount, setFriendsCount] = useState(0);
   const [requestsCount, setRequestsCount] = useState(0);
   const [friends, setFriends] = useState([]);
@@ -70,34 +75,69 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Quick Stats Row */}
+        {/* Player Card */}
         <div className="max-w-7xl mx-auto px-4 -mt-6 relative z-10 mb-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 text-center">
-              <FaUserFriends className="text-purple-500 text-xl mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-800">
-                {loadingSocial ? "..." : friendsCount}
-              </p>
-              <p className="text-gray-500 text-xs font-medium">Friends</p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 text-center">
-              <FaEnvelopeOpenText className="text-pink-500 text-xl mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-800">
-                {loadingSocial ? "..." : requestsCount}
-              </p>
-              <p className="text-gray-500 text-xs font-medium">
-                Friend Requests
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 text-center">
-              <FaGlobe className="text-indigo-500 text-xl mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-800">Live</p>
-              <p className="text-gray-500 text-xs font-medium">Online Games</p>
-            </div>
-            <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 text-center">
-              <FaMusic className="text-purple-500 text-xl mx-auto mb-1" />
-              <p className="text-2xl font-bold text-gray-800">Ready</p>
-              <p className="text-gray-500 text-xs font-medium">To Play</p>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Level Badge */}
+              <Link to="/profile" className="shrink-0">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-2xl text-white font-bold shadow-lg hover:scale-105 transition-transform">
+                  {myStats?.level || 1}
+                </div>
+              </Link>
+
+              {/* XP + Info */}
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                  <Link to="/profile" className="text-gray-800 font-bold hover:text-purple-600 transition-colors">
+                    Level {myStats?.level || 1} — {myStats?.levelTitle || "Newbie"}
+                  </Link>
+                </div>
+                <div className="w-full max-w-xs mx-auto sm:mx-0">
+                  <div className="flex justify-between text-[10px] text-gray-400 mb-0.5">
+                    <span>{myStats?.xp || 0} XP</span>
+                    <span>Next: {myStats?.xpForNextLevel || 50} XP</span>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+                      style={{ width: `${myStats?.xpNeeded ? Math.min(100, Math.round(((myStats?.xpProgress || 0) / myStats.xpNeeded) * 100)) : 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-800">{myStats?.gamesPlayed || 0}</p>
+                  <p className="text-[10px] text-gray-400">Games</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-800">{myStats?.gamesWon || 0}</p>
+                  <p className="text-[10px] text-gray-400">Wins</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-800">{myStats?.accuracy || 0}%</p>
+                  <p className="text-[10px] text-gray-400">Accuracy</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-800 flex items-center justify-center gap-0.5">
+                    <FaFire className="text-orange-500 text-xs" />{myStats?.currentStreak || 0}
+                  </p>
+                  <p className="text-[10px] text-gray-400">Streak</p>
+                </div>
+              </div>
+
+              {/* Profile + Leaderboard Links */}
+              <div className="flex sm:flex-col gap-2 shrink-0">
+                <Link to="/profile" className="flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+                  <FaUser className="text-[10px]" /> Profile
+                </Link>
+                <Link to="/leaderboard" className="flex items-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+                  <FaTrophy className="text-[10px]" /> Ranks
+                </Link>
+              </div>
             </div>
           </div>
         </div>

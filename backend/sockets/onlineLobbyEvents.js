@@ -3,6 +3,7 @@ import Game from "../models/Game.js";
 import Friendship from "../models/Friendship.js";
 import { generateRoomCode } from "../utils/generateRoomCode.js";
 import { setPresence } from "./presenceEvents.js";
+import { processGameResults } from "../services/statsService.js";
 
 const availableEmojis = [
   "🐶", "🦊", "🐼", "🐵", "🐱", "🦁", "🐸", "🐻", "🦄", "🐯",
@@ -13,25 +14,11 @@ const MAX_PLAYERS = 8;
 const AUTO_START_COUNTDOWN = 10; // seconds
 
 export function handleOnlineLobbyEvents(io, socket) {
-  // Get list of online games waiting for players (public only)
-  socket.on("getOnlineRooms", () => {
-    const onlineRooms = [];
-    for (const [code, room] of rooms.entries()) {
-      if (room.isOnline && (room.visibility || "public") === "public") {
-        onlineRooms.push({
-          roomCode: code,
-          title: room.game?.title || "Untitled Game",
-          playerCount: room.players.filter((p) => p.status !== "disconnected").length,
-          maxPlayers: MAX_PLAYERS,
-          status: room.status,
-          songCount: room.game?.songs?.length || 0,
-          guessTimeLimit: room.game?.guessTimeLimit || 15,
-          creatorUsername: room.creatorUsername || "Anonymous",
-          visibility: "public",
-        });
-      }
-    }
-    socket.emit("onlineRoomsList", onlineRooms);
+  // Get list of online games visible to this user (public + friends-only if friends with creator)
+  socket.on("getOnlineRooms", async () => {
+    const userId = socket.handshake.auth?.userId;
+    const visibleRooms = await getVisibleRoomsForUser(userId);
+    socket.emit("onlineRoomsList", visibleRooms);
   });
 
   // Create an online game room from a public game
@@ -220,12 +207,6 @@ export function handleOnlineLobbyEvents(io, socket) {
 
     console.log(`🌐 ${username} joined online room ${roomCode} (${connectedPlayers.length + 1} players)`);
 
-    // Check if we have enough players for auto-start countdown
-    const currentCount = room.players.filter((p) => p.status !== "disconnected").length;
-    if (currentCount >= MIN_PLAYERS && !room.autoStartTimer) {
-      startAutoStartCountdown(io, roomCode);
-    }
-
     broadcastLobbyUpdate(io);
   });
 
@@ -236,12 +217,6 @@ export function handleOnlineLobbyEvents(io, socket) {
 
     if (room.creatorSocketId !== socket.id) {
       socket.emit("onlineError", "Only the room creator can start the game");
-      return;
-    }
-
-    const connectedPlayers = room.players.filter((p) => p.status !== "disconnected");
-    if (connectedPlayers.length < MIN_PLAYERS) {
-      socket.emit("onlineError", `Need at least ${MIN_PLAYERS} players to start`);
       return;
     }
 
@@ -326,6 +301,7 @@ export function startOnlineGame(io, roomCode) {
   });
 
   room.currentTimeout = null;
+  room.allPlayerAnswers = {}; // Accumulate per-song answers for stats
 
   // Update presence for all players to in_game
   room.players.forEach((player) => {
@@ -454,6 +430,19 @@ export function onlineFinishRound(io, roomCode) {
     });
   }
 
+  // Accumulate answers for end-of-game stats (per song, best attempt per player)
+  if (room.allPlayerAnswers) {
+    const songKey = `song_${room.currentSongIndex}`;
+    Object.entries(playerAnswersSummary).forEach(([username, data]) => {
+      if (!room.allPlayerAnswers[username]) room.allPlayerAnswers[username] = {};
+      // Keep the best answer per song (correct > incorrect, higher score wins)
+      const existing = room.allPlayerAnswers[username][songKey];
+      if (!existing || (!existing.isCorrect && data.isCorrect) || (data.score > (existing.score || 0))) {
+        room.allPlayerAnswers[username][songKey] = data;
+      }
+    });
+  }
+
   if (room.correctUsers.size === 0) {
     // Nobody got it right - in online mode, auto-replay with longer snippet
     if (room.currentRound < 5) {
@@ -520,7 +509,7 @@ function scheduleNextSong(io, roomCode) {
   // Clear any existing timeout
   if (room.currentTimeout) clearTimeout(room.currentTimeout);
 
-  room.currentTimeout = setTimeout(() => {
+  room.currentTimeout = setTimeout(async () => {
     const currentRoom = rooms.get(roomCode);
     if (!currentRoom) return;
 
@@ -532,8 +521,10 @@ function scheduleNextSong(io, roomCode) {
     } else {
       // Game over
       const playerEmojiMap = {};
+      const playerUserIdMap = {};
       currentRoom.players.forEach((player) => {
         playerEmojiMap[player.username] = player.emoji;
+        if (player.userId) playerUserIdMap[player.username] = player.userId;
       });
 
       const topScores = Object.entries(currentRoom.scores)
@@ -544,10 +535,25 @@ function scheduleNextSong(io, roomCode) {
           username,
           score,
           emoji: playerEmojiMap[username] || "🎮",
+          userId: playerUserIdMap[username] || null,
         }));
+
+      // Persist stats for authenticated players
+      let statsResults = {};
+      try {
+        statsResults = await processGameResults({
+          leaderboard: topScores,
+          allPlayerAnswers: currentRoom.allPlayerAnswers || {},
+          totalSongs: currentRoom.songs.length,
+          gameTitle: currentRoom.game?.title || "Untitled Game",
+        });
+      } catch (err) {
+        console.error("❌ Error processing game stats:", err);
+      }
 
       io.to(roomCode).emit("gameOver", {
         leaderboard: topScores,
+        statsResults, // Per-userId XP/level data for post-game screen
       });
 
       console.log(`🌐 Online game over in room ${roomCode}`);
@@ -632,24 +638,69 @@ export function handleOnlinePlayerLeave(io, socket, roomCode) {
   broadcastLobbyUpdate(io);
 }
 
+/**
+ * Signal all connected clients to re-fetch their personalized room list.
+ * We can't broadcast a single list because each user sees different rooms
+ * based on friendship (friends-only rooms are only visible to friends).
+ */
 export function broadcastLobbyUpdate(io) {
-  const onlineRooms = [];
+  io.emit("onlineLobbyChanged");
+}
+
+// Build the personalized room list for a specific user
+async function getVisibleRoomsForUser(userId) {
+  // Load this user's friend IDs once for the whole listing
+  let friendIds = new Set();
+  if (userId) {
+    try {
+      const friendships = await Friendship.find({
+        $or: [{ requester: userId }, { recipient: userId }],
+        status: "accepted",
+      }).select("requester recipient");
+      for (const f of friendships) {
+        const friendId =
+          f.requester.toString() === userId.toString()
+            ? f.recipient.toString()
+            : f.requester.toString();
+        friendIds.add(friendId);
+      }
+    } catch (err) {
+      console.error("Error loading friends for lobby:", err);
+    }
+  }
+
+  const visibleRooms = [];
   for (const [code, room] of rooms.entries()) {
-    if (room.isOnline && (room.visibility || "public") === "public") {
-      onlineRooms.push({
+    if (!room.isOnline) continue;
+    const vis = room.visibility || "public";
+
+    let visible = false;
+    if (vis === "public") {
+      visible = true;
+    } else if (vis === "friends" && userId) {
+      // Visible if user is the creator or friends with the creator
+      visible =
+        room.creatorUserId === userId.toString() ||
+        friendIds.has(room.creatorUserId);
+    }
+    // Private rooms are never listed (join by code/invite only)
+
+    if (visible) {
+      visibleRooms.push({
         roomCode: code,
         title: room.game?.title || "Untitled Game",
-        playerCount: room.players.filter((p) => p.status !== "disconnected").length,
+        playerCount: room.players.filter((p) => p.status !== "disconnected")
+          .length,
         maxPlayers: MAX_PLAYERS,
         status: room.status,
         songCount: room.game?.songs?.length || 0,
         guessTimeLimit: room.game?.guessTimeLimit || 15,
         creatorUsername: room.creatorUsername || "Anonymous",
-        visibility: "public",
+        visibility: vis,
       });
     }
   }
-  io.emit("onlineLobbyUpdate", onlineRooms);
+  return visibleRooms;
 }
 
 // Helper to check if two users are friends

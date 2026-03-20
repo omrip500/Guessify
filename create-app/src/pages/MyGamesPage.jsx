@@ -156,9 +156,16 @@ const MyGames = () => {
                 >
                   {/* Game Header */}
                   <div className="flex justify-between items-start mb-6">
-                    <h3 className="text-2xl font-bold text-gray-800 leading-tight">
-                      {game.title}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-2xl font-bold text-gray-800 leading-tight">
+                        {game.title}
+                      </h3>
+                      {game.source === "ai" && (
+                        <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                          AI
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-semibold ${
                         game.isPublic

@@ -12,7 +12,13 @@
       "Bash(npm run build)",
       "Bash(node -e \":*)",
       "Bash(npx react-scripts build)",
-      "Read(//Users/omripeer/Documents/Omri/תואר ראשון במדעי־המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/Music App/play-app/**)"
+      "Read(//Users/omripeer/Documents/Omri/תואר ראשון במדעי־המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/Music App/play-app/**)",
+      "Bash(grep -E \"\\\\.jsx?$|\\\\.tsx?$|\\\\.json$\")",
+      "Bash(node -e \"import\\(''./services/statsService.js''\\).then\\(m => { console.log\\(''statsService OK:'', Object.keys\\(m\\)\\); }\\).catch\\(e => console.error\\(''ERROR:'', e.message\\)\\)\")",
+      "Bash(node -e \"import\\(''./services/aiGameGenerator.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
+      "Bash(node -e \"import\\(''./routes/aiGameRoutes.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
+      "Bash(node -e \"import\\(''./sockets/onlineLobbyEvents.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
+      "Read(//Users/omripeer/Documents/Omri/**)"
     ]
   }
 }

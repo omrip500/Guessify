@@ -12,6 +12,8 @@ export const LESSONS_URL = `${BASE_URL}/api/lessons`;
 export const LYRICS_URL = `${BASE_URL}/api/lyrics`;
 export const ASSISTANT_URL = `${BASE_URL}/api/assistant`;
 export const FRIENDS_URL = `${BASE_URL}/api/friends`;
+export const STATS_URL = `${BASE_URL}/api/stats`;
+export const AI_URL = `${BASE_URL}/api/ai`;
 
 export const PLAY_APP_URL =
   process.env.NODE_ENV === "development"

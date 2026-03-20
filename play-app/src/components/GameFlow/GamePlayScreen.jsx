@@ -24,16 +24,6 @@ const GamePlayScreen = ({
   isGamePaused = false, // האם המשחק מושהה
   pauseReason = "", // סיבת ההשהיה
 }) => {
-  console.log("🎮 GamePlayScreen props:", {
-    timeLeft,
-    maxTime,
-    hasGuessed,
-    isWaiting,
-    isGameOver,
-    isAudioPlaying,
-    answerDetails,
-  });
-
   // פונקציה להצגת סוג התשובה
   const getAnswerTypeDisplay = (answerType) => {
     switch (answerType) {
@@ -157,11 +147,6 @@ const GamePlayScreen = ({
           {/* Timer Circle - מוצג רק כשיש זמן נותר והמשתתף עדיין לא ניחש ולא במצב השהיה */}
           {timeLeft && !isGameOver && !hasGuessed && !isGamePaused && (
             <div className="flex flex-col items-center justify-center mb-6">
-              {console.log("🎮 Rendering timer circle with:", {
-                timeLeft,
-                maxTime,
-                progress,
-              })}
               <div className="relative">
                 <svg width="100" height="100" className="transform -rotate-90">
                   <circle

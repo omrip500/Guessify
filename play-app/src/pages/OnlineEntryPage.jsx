@@ -28,18 +28,9 @@ const OnlineEntryPage = () => {
   const username = searchParams.get("username") || user?.firstName || "Player";
   const visibility = searchParams.get("visibility") || "public";
 
+  // Always register socket listeners (survives React strict mode re-mounts)
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setError("You must be logged in to play online.");
-      return;
-    }
-    if (!action || (action === "join" && !roomCode) || (action === "create" && !gameId)) {
-      setError("Invalid entry parameters.");
-      return;
-    }
-    if (hasActed.current) return;
-    hasActed.current = true;
+    if (authLoading || !user) return;
 
     const socket = getSocket({ userId: user._id });
 
@@ -86,6 +77,29 @@ const OnlineEntryPage = () => {
     socket.on("onlineRoomCreated", handleRoomCreated);
     socket.on("onlineError", handleError);
 
+    return () => {
+      socket.off("onlineRoomJoined", handleRoomJoined);
+      socket.off("onlineRoomCreated", handleRoomCreated);
+      socket.off("onlineError", handleError);
+    };
+  }, [user, authLoading, username, navigate]);
+
+  // Emit the socket event exactly once
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setError("You must be logged in to play online.");
+      return;
+    }
+    if (!action || (action === "join" && !roomCode) || (action === "create" && !gameId)) {
+      setError("Invalid entry parameters.");
+      return;
+    }
+    if (hasActed.current) return;
+    hasActed.current = true;
+
+    const socket = getSocket({ userId: user._id });
+
     setStatus("joining");
 
     if (action === "join") {
@@ -93,13 +107,7 @@ const OnlineEntryPage = () => {
     } else if (action === "create") {
       socket.emit("createOnlineRoom", { gameId, username, visibility });
     }
-
-    return () => {
-      socket.off("onlineRoomJoined", handleRoomJoined);
-      socket.off("onlineRoomCreated", handleRoomCreated);
-      socket.off("onlineError", handleError);
-    };
-  }, [user, authLoading, action, roomCode, gameId, username, visibility, navigate]);
+  }, [user, authLoading, action, roomCode, gameId, username, visibility]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center px-4">
@@ -108,7 +116,7 @@ const OnlineEntryPage = () => {
           <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 border border-white border-opacity-20 max-w-md">
             <div className="text-4xl mb-4">⚠️</div>
             <p className="text-white text-lg font-semibold mb-2">
-              Could not {action === "create" ? "create room" : "join game"}
+              Could not {action === "create" ? "start game" : "join game"}
             </p>
             <p className="text-purple-200 text-sm mb-6">{error}</p>
             <button
@@ -122,7 +130,7 @@ const OnlineEntryPage = () => {
           <>
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
             <p className="text-white text-lg font-semibold">
-              {status === "connecting" ? "Connecting..." : action === "create" ? "Creating room..." : "Joining game..."}
+              {status === "connecting" ? "Connecting..." : action === "create" ? "Starting game..." : "Joining game..."}
             </p>
             <p className="text-purple-200 text-sm mt-2">
               Please wait a moment

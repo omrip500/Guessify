@@ -427,7 +427,7 @@ function deriveTitleFromSongs(songs) {
  * If the LLM provided an English title but the songs are Hebrew-oriented,
  * try to localize it. Also normalizes known English artist names used as titles.
  */
-function localizeGameTitle(title, songs) {
+export function localizeGameTitle(title, songs) {
   if (!title) return title;
 
   // If title is already in Hebrew, keep it

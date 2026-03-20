@@ -1,6 +1,8 @@
 import asyncHandler from "express-async-handler";
 import User from "../models/userModel.js";
 import Friendship from "../models/Friendship.js";
+import PlayerStats from "../models/PlayerStats.js";
+import { calculateLevel, getLevelTitle } from "../services/statsService.js";
 
 // @desc    Search users by name or email
 // @route   GET /api/friends/search?q=...
@@ -193,7 +195,7 @@ export const getFriends = asyncHandler(async (req, res) => {
     .populate("requester", "firstName lastName email")
     .populate("recipient", "firstName lastName email");
 
-  const friends = friendships.map((f) => {
+  const friendsList = friendships.map((f) => {
     const friend =
       f.requester._id.toString() === req.user._id.toString()
         ? f.recipient
@@ -204,6 +206,24 @@ export const getFriends = asyncHandler(async (req, res) => {
       firstName: friend.firstName,
       lastName: friend.lastName,
       email: friend.email,
+    };
+  });
+
+  // Enrich with level data from PlayerStats
+  const friendIds = friendsList.map((f) => f._id);
+  const statsArr = await PlayerStats.find({ userId: { $in: friendIds } }).select("userId xp").lean();
+  const statsMap = {};
+  statsArr.forEach((s) => {
+    statsMap[s.userId.toString()] = s;
+  });
+
+  const friends = friendsList.map((f) => {
+    const s = statsMap[f._id.toString()];
+    const level = s ? calculateLevel(s.xp) : 1;
+    return {
+      ...f,
+      level,
+      levelTitle: getLevelTitle(level),
     };
   });
 

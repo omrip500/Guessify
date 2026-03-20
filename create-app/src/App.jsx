@@ -11,6 +11,9 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import FinalLeaderboardPage from "./pages/FinalLeaderboardPage";
 import PlayOnlinePage from "./pages/PlayOnlinePage";
 import FriendsPage from "./pages/FriendsPage";
+import ProfilePage from "./pages/ProfilePage";
+import UserProfilePage from "./pages/UserProfilePage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 
 import PrivateRoute from "./components/PrivateRoute";
 import RedirectIfLoggedIn from "./components/RedirectIfLoggedIn";
@@ -45,6 +48,9 @@ function App() {
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/launch/:gameId" element={<LaunchGamePage />} />
             <Route path="/final-leaderboard" element={<FinalLeaderboardPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:userId" element={<UserProfilePage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

@@ -16,12 +16,12 @@ import {
   FaSignOutAlt,
   FaUserPlus,
   FaSignInAlt,
-  FaNewspaper,
   FaEnvelope,
   FaInfoCircle,
   FaList,
   FaGlobe,
   FaUserFriends,
+  FaTrophy,
 } from "react-icons/fa";
 
 const Navbar = () => {
@@ -70,7 +70,7 @@ const Navbar = () => {
     { path: "/friends", label: "Friends", icon: FaUserFriends },
     { path: "/create", label: "Create", icon: FaPlus },
     { path: "/mygames", label: "My Games", icon: FaList },
-    { path: "/analytics", label: "Analytics", icon: FaChartLine },
+    { path: "/leaderboard", label: "Ranks", icon: FaTrophy },
   ];
 
   // Navigation items for non-authenticated users
@@ -129,16 +129,6 @@ const Navbar = () => {
               );
             })}
           </nav>
-
-          {/* News Button - Desktop */}
-          <div className="hidden lg:flex items-center space-x-4">
-            <Link to="/blog">
-              <button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105">
-                <FaNewspaper className="text-sm" />
-                <span className="text-sm">News</span>
-              </button>
-            </Link>
-          </div>
 
           {/* Desktop Actions */}
           <div className="hidden lg:flex items-center space-x-3">
@@ -207,14 +197,6 @@ const Navbar = () => {
                 </div>
               </div>
             )}
-
-            {/* News Button - Mobile */}
-            <Link to="/blog" className="block mb-4">
-              <button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white py-3 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg">
-                <FaNewspaper />
-                <span>News</span>
-              </button>
-            </Link>
 
             {/* Navigation Links - Mobile */}
             <nav className="space-y-2 mb-6">

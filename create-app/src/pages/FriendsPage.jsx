@@ -291,9 +291,12 @@ const FriendsPage = () => {
                       className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 hover:shadow-xl transition-all"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                        <div
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => navigate(`/profile/${friend._id}`)}
+                        >
                           <div className="relative">
-                            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold group-hover:ring-2 group-hover:ring-purple-300 transition-all">
                               {friend.firstName[0]}
                             </div>
                             <div
@@ -301,9 +304,16 @@ const FriendsPage = () => {
                             ></div>
                           </div>
                           <div>
-                            <p className="text-gray-800 font-semibold">
-                              {friend.firstName} {friend.lastName}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-gray-800 font-semibold group-hover:text-purple-600 transition-colors">
+                                {friend.firstName} {friend.lastName}
+                              </p>
+                              {friend.level && (
+                                <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                                  Lv.{friend.level}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-gray-500 text-xs">
                               {presenceInfo.text}
                               {p.status === "in_lobby" && p.roomVisibility === "private" && (
@@ -364,12 +374,15 @@ const FriendsPage = () => {
                     className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 hover:shadow-xl transition-all"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      <div
+                        className="flex items-center gap-3 cursor-pointer group"
+                        onClick={() => navigate(`/profile/${req.requester._id}`)}
+                      >
+                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold group-hover:ring-2 group-hover:ring-purple-300 transition-all">
                           {req.requester.firstName[0]}
                         </div>
                         <div>
-                          <p className="text-gray-800 font-semibold">
+                          <p className="text-gray-800 font-semibold group-hover:text-purple-600 transition-colors">
                             {req.requester.firstName} {req.requester.lastName}
                           </p>
                           <p className="text-gray-400 text-xs">
@@ -426,12 +439,15 @@ const FriendsPage = () => {
                     className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100 hover:shadow-xl transition-all"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      <div
+                        className="flex items-center gap-3 cursor-pointer group"
+                        onClick={() => navigate(`/profile/${result._id}`)}
+                      >
+                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold group-hover:ring-2 group-hover:ring-purple-300 transition-all">
                           {result.firstName[0]}
                         </div>
                         <div>
-                          <p className="text-gray-800 font-semibold">
+                          <p className="text-gray-800 font-semibold group-hover:text-purple-600 transition-colors">
                             {result.firstName} {result.lastName}
                           </p>
                           <p className="text-gray-400 text-xs">

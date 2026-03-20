@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { getSocket } from "../socket";
-import { BASE_URL, PLAY_APP_URL } from "../constants";
+import { BASE_URL, AI_URL, PLAY_APP_URL } from "../constants";
 import PageLayout from "../components/PageLayout";
 import {
   FaArrowLeft,
@@ -11,7 +11,18 @@ import {
   FaGlobe,
   FaUsers,
   FaLock,
+  FaMagic,
+  FaPlay,
 } from "react-icons/fa";
+
+const AI_SUGGESTIONS = [
+  "Israeli songs from the 90s",
+  "Arik Einstein songs",
+  "Sad Hebrew songs",
+  "Pop hits 2024",
+  "Classic rock legends",
+  "Love songs in Hebrew",
+];
 
 const PlayOnlinePage = () => {
   const navigate = useNavigate();
@@ -21,8 +32,14 @@ const PlayOnlinePage = () => {
   const [publicGames, setPublicGames] = useState([]);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("rooms"); // "rooms" | "create"
+  const [tab, setTab] = useState("rooms"); // "rooms" | "create" | "ai"
   const [roomVisibility, setRoomVisibility] = useState("public");
+
+  // AI generation state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState(null);
 
   useEffect(() => {
     if (!userInfo) {
@@ -65,8 +82,9 @@ const PlayOnlinePage = () => {
       setLoading(false);
     });
 
-    socket.on("onlineLobbyUpdate", (rooms) => {
-      setOnlineRooms(rooms);
+    // When any room changes, re-fetch personalized list (includes friends-only rooms)
+    socket.on("onlineLobbyChanged", () => {
+      socket.emit("getOnlineRooms");
     });
 
     socket.on("onlineError", (msg) => {
@@ -80,7 +98,7 @@ const PlayOnlinePage = () => {
 
     return () => {
       socket.off("onlineRoomsList");
-      socket.off("onlineLobbyUpdate");
+      socket.off("onlineLobbyChanged");
       socket.off("onlineError");
       clearInterval(interval);
     };
@@ -91,7 +109,6 @@ const PlayOnlinePage = () => {
       toast.error("Please enter a nickname first");
       return;
     }
-    // Redirect to play-app entry which handles the socket join
     window.location.href = `${PLAY_APP_URL}/online/entry?action=join&roomCode=${roomCode}&username=${encodeURIComponent(username.trim())}`;
   };
 
@@ -100,8 +117,40 @@ const PlayOnlinePage = () => {
       toast.error("Please enter a nickname first");
       return;
     }
-    // Redirect to play-app entry which handles the socket create
     window.location.href = `${PLAY_APP_URL}/online/entry?action=create&gameId=${gameId}&username=${encodeURIComponent(username.trim())}&visibility=${roomVisibility}`;
+  };
+
+  // AI game generation
+  const handleGenerateGame = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Describe the game you want");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError(null);
+    setAiResult(null);
+
+    try {
+      const res = await fetch(`${AI_URL}/generate-game`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt: aiPrompt.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to generate game");
+      }
+
+      setAiResult(data);
+    } catch (err) {
+      setAiError(err.message);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   if (!userInfo) return null;
@@ -130,7 +179,7 @@ const PlayOnlinePage = () => {
                 Play Online
               </h1>
               <p className="text-sm sm:text-lg text-purple-100 max-w-xl mx-auto">
-                Join rooms, play with friends, or challenge anyone online
+                Join live games, play with friends, or start a new session
               </p>
             </div>
           </div>
@@ -194,7 +243,7 @@ const PlayOnlinePage = () => {
                   : "bg-white text-gray-600 border border-gray-200 hover:border-purple-300 hover:text-purple-600"
               }`}
             >
-              Join a Room ({waitingRooms.length})
+              Join a Game ({waitingRooms.length})
             </button>
             <button
               onClick={() => {
@@ -207,33 +256,53 @@ const PlayOnlinePage = () => {
                   : "bg-white text-gray-600 border border-gray-200 hover:border-purple-300 hover:text-purple-600"
               }`}
             >
-              Create Room
+              Start a Game
+            </button>
+            <button
+              onClick={() => setTab("ai")}
+              className={`flex-1 py-2.5 rounded-xl font-semibold transition-all text-sm flex items-center justify-center gap-1.5 ${
+                tab === "ai"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-amber-300 hover:text-amber-600"
+              }`}
+            >
+              <FaMagic className="text-xs" />
+              AI Game
             </button>
           </div>
 
-          {/* Tab Content */}
+          {/* ========== JOIN TAB ========== */}
           {tab === "rooms" && (
             <div className="space-y-3">
               {loading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p className="text-gray-500">Loading rooms...</p>
+                  <p className="text-gray-500">Loading games...</p>
                 </div>
               ) : waitingRooms.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 text-center">
                   <div className="text-4xl mb-4">🎵</div>
                   <p className="text-gray-800 text-lg font-semibold mb-2">
-                    No rooms available
+                    No live games right now
                   </p>
                   <p className="text-gray-500 text-sm mb-4">
-                    Be the first to create one!
+                    Be the first to start one!
                   </p>
-                  <button
-                    onClick={() => setTab("create")}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-6 py-2.5 rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg"
-                  >
-                    Create a Room
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <button
+                      onClick={() => setTab("create")}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-6 py-2.5 rounded-xl hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg"
+                    >
+                      Start a Game
+                    </button>
+                    <button
+                      onClick={() => setTab("ai")}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold px-6 py-2.5 rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <FaMagic className="text-sm" />
+                      Create with AI
+                    </button>
+                  </div>
                 </div>
               ) : (
                 waitingRooms.map((room) => (
@@ -243,9 +312,16 @@ const PlayOnlinePage = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="text-gray-800 font-bold text-lg">
-                          {room.title}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-gray-800 font-bold text-lg">
+                            {room.title}
+                          </h3>
+                          {room.visibility === "friends" && (
+                            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                              Friends
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                           <span>
                             👥 {room.playerCount}/{room.maxPlayers} players
@@ -254,7 +330,7 @@ const PlayOnlinePage = () => {
                           <span>⏱️ {room.guessTimeLimit}s</span>
                         </div>
                         <p className="text-gray-400 text-xs mt-1">
-                          Created by {room.creatorUsername}
+                          Started by {room.creatorUsername}
                         </p>
                       </div>
                       <button
@@ -271,18 +347,19 @@ const PlayOnlinePage = () => {
             </div>
           )}
 
+          {/* ========== START A GAME TAB ========== */}
           {tab === "create" && (
             <div className="space-y-3">
               {/* Room Visibility Selector */}
               <div className="bg-white rounded-2xl p-5 shadow-lg border border-gray-100">
                 <label className="text-gray-700 text-sm font-semibold mb-3 block">
-                  Room Visibility
+                  Who can join?
                 </label>
                 <div className="flex gap-2">
                   {[
-                    { value: "public", label: "Public", icon: <FaGlobe className="text-purple-600" />, desc: "Anyone can join" },
-                    { value: "friends", label: "Friends", icon: <FaUsers className="text-purple-600" />, desc: "Friends only" },
-                    { value: "private", label: "Private", icon: <FaLock className="text-gray-500" />, desc: "Invite only" },
+                    { value: "public", label: "Everyone", icon: <FaGlobe className="text-purple-600" />, desc: "Visible to all players" },
+                    { value: "friends", label: "Friends", icon: <FaUsers className="text-purple-600" />, desc: "Only your friends" },
+                    { value: "private", label: "Invite Only", icon: <FaLock className="text-gray-500" />, desc: "Share the code" },
                   ].map((opt) => (
                     <button
                       key={opt.value}
@@ -307,10 +384,17 @@ const PlayOnlinePage = () => {
                   <p className="text-gray-800 text-lg font-semibold mb-2">
                     No public games available
                   </p>
-                  <p className="text-gray-500 text-sm">
-                    Game creators need to mark their games as public for them to
-                    appear here.
+                  <p className="text-gray-500 text-sm mb-4">
+                    Game creators need to mark their games as public, or you can
+                    let AI create one for you.
                   </p>
+                  <button
+                    onClick={() => setTab("ai")}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold px-6 py-2.5 rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg inline-flex items-center gap-2"
+                  >
+                    <FaMagic className="text-sm" />
+                    Create with AI
+                  </button>
                 </div>
               ) : (
                 publicGames.map((game) => (
@@ -320,9 +404,16 @@ const PlayOnlinePage = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <h3 className="text-gray-800 font-bold text-lg">
-                          {game.title}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-gray-800 font-bold text-lg">
+                            {game.title}
+                          </h3>
+                          {game.source === "ai" && (
+                            <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                              AI
+                            </span>
+                          )}
+                        </div>
                         {game.description && (
                           <p className="text-gray-500 text-sm mt-1 line-clamp-1">
                             {game.description}
@@ -338,11 +429,167 @@ const PlayOnlinePage = () => {
                         disabled={!username.trim()}
                         className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-5 py-2.5 rounded-xl hover:from-purple-500 hover:to-pink-500 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-lg"
                       >
-                        Host
+                        Start Game
                       </button>
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          )}
+
+          {/* ========== AI GAME TAB ========== */}
+          {tab === "ai" && (
+            <div className="space-y-4">
+              {/* AI Result — show at top when ready */}
+              {aiResult && (
+                <div className="bg-white rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-white">
+                      <FaMagic />
+                      <span className="font-bold">AI Generated</span>
+                    </div>
+                    <span className="text-amber-100 text-sm">
+                      {aiResult.songCount} songs
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-gray-800 font-bold text-xl mb-1">
+                      {aiResult.title}
+                    </h3>
+                    {aiResult.description && (
+                      <p className="text-gray-500 text-sm mb-3">
+                        {aiResult.description}
+                      </p>
+                    )}
+
+                    {/* Song preview grid */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {aiResult.songs.slice(0, 6).map((song, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-1.5"
+                        >
+                          {song.artworkUrl && (
+                            <img
+                              src={song.artworkUrl}
+                              alt=""
+                              className="w-6 h-6 rounded"
+                            />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-gray-700 text-xs font-medium truncate max-w-[120px]">
+                              {song.title}
+                            </p>
+                            <p className="text-gray-400 text-[10px] truncate max-w-[120px]">
+                              {song.artist}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {aiResult.songCount > 6 && (
+                        <div className="flex items-center bg-gray-50 rounded-lg px-3 py-1.5">
+                          <span className="text-gray-400 text-xs">
+                            +{aiResult.songCount - 6} more
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleCreateRoom(aiResult._id)}
+                        disabled={!username.trim()}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 rounded-xl hover:from-green-400 hover:to-emerald-400 disabled:from-gray-400 disabled:to-gray-500 transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2 text-lg"
+                      >
+                        <FaPlay className="text-sm" />
+                        Start Game
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAiResult(null);
+                          setAiPrompt("");
+                        }}
+                        className="bg-gray-100 text-gray-600 font-semibold px-5 py-3 rounded-xl hover:bg-gray-200 transition-all"
+                      >
+                        New
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Input — hide when result is showing */}
+              {!aiResult && (
+                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-2 rounded-xl">
+                      <FaMagic className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-gray-800 font-bold text-lg">
+                        Create with AI
+                      </h3>
+                      <p className="text-gray-500 text-xs">
+                        Describe the game you want and AI will create it
+                        instantly
+                      </p>
+                    </div>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value.slice(0, 500))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !aiLoading) handleGenerateGame();
+                    }}
+                    placeholder="e.g. Israeli songs from the 90s..."
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all text-base"
+                    maxLength={500}
+                    disabled={aiLoading}
+                  />
+
+                  {/* Suggestion chips */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {AI_SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => setAiPrompt(suggestion)}
+                        disabled={aiLoading}
+                        className="text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 px-3 py-1.5 rounded-full transition-colors border border-amber-200 disabled:opacity-50"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Error */}
+                  {aiError && (
+                    <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
+                      <p className="text-red-600 text-sm">{aiError}</p>
+                    </div>
+                  )}
+
+                  {/* Generate button */}
+                  <button
+                    onClick={handleGenerateGame}
+                    disabled={aiLoading || !aiPrompt.trim()}
+                    className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3 rounded-xl hover:from-amber-400 hover:to-orange-400 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Creating your game...
+                      </>
+                    ) : (
+                      <>
+                        <FaMagic />
+                        Generate Game
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
           )}

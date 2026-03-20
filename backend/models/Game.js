@@ -24,6 +24,11 @@ const gameSchema = new mongoose.Schema(
       enum: ["freeText", "letterClick"],
       required: true,
     }, // שיטת ניחוש: כתיבה חופשית או לחיצה על אותיות
+    source: {
+      type: String,
+      default: "manual",
+      enum: ["manual", "ai"],
+    },
   },
   { timestamps: true }
 );

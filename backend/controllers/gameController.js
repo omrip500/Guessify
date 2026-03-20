@@ -664,7 +664,7 @@ export const updateLyricsForExistingGames = asyncHandler(async (req, res) => {
 // @access  Public (no auth required)
 export const getPublicGames = asyncHandler(async (req, res) => {
   const games = await Game.find({ isPublic: true })
-    .select("title description songs guessTimeLimit guessInputMethod createdAt")
+    .select("title description songs guessTimeLimit guessInputMethod source createdAt")
     .sort({ createdAt: -1 })
     .limit(50);
 
@@ -677,6 +677,7 @@ export const getPublicGames = asyncHandler(async (req, res) => {
       songCount: game.songs.length,
       guessTimeLimit: game.guessTimeLimit,
       guessInputMethod: game.guessInputMethod,
+      source: game.source || "manual",
       createdAt: game.createdAt,
     }));
 
