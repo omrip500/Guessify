@@ -1,6 +1,4 @@
 import Game from "../models/Game.js";
-import { fetchLyricsFromGenius } from "./lyricsService.js";
-import { extractKeywordsFromLyrics } from "./lyricsDatabaseService.js";
 import { normalizeArtistName } from "../utils/artistNormalization.js";
 import { cleanSongTitle, normalizeSongTitle } from "../utils/songNormalization.js";
 
@@ -22,44 +20,12 @@ function normalizeSong(song) {
     previewUrl: song.previewUrl || "",
     artworkUrl: song.artworkUrl || "",
     trackId: song.trackId || "",
-    lyrics: song.lyrics || "",
-    lyricsKeywords: song.lyricsKeywords || [],
-    fullLyrics: song.fullLyrics || "",
   };
 }
 
-// Fetch lyrics for a single song if missing
-async function enrichSongWithLyrics(songData) {
-  if (songData.lyrics && songData.lyrics.length > 0) {
-    return songData;
-  }
-  try {
-    const lyrics = await fetchLyricsFromGenius(
-      songData.trackId,
-      songData.title,
-      songData.artist
-    );
-    if (lyrics) {
-      songData.lyrics = lyrics;
-      songData.lyricsKeywords = extractKeywordsFromLyrics(lyrics);
-    }
-  } catch (error) {
-    console.log(
-      `⚠️ Error fetching lyrics for ${songData.title}:`,
-      error.message
-    );
-  }
-  return songData;
-}
-
-// Process an array of raw songs into validated, lyrics-enriched song objects
+// Process an array of raw songs into validated song objects
 export async function processSongs(songs) {
-  return Promise.all(
-    songs.map(async (song) => {
-      const normalized = normalizeSong(song);
-      return enrichSongWithLyrics(normalized);
-    })
-  );
+  return songs.map((song) => normalizeSong(song));
 }
 
 // Validate guess time limit

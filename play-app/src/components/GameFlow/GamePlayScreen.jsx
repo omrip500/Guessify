@@ -31,8 +31,6 @@ const GamePlayScreen = ({
         return { emoji: "🎵", text: "Song Name", color: "text-yellow-300" };
       case "artist":
         return { emoji: "🎤", text: "Artist Name", color: "text-orange-300" };
-      case "lyrics":
-        return { emoji: "📝", text: "Song Lyrics", color: "text-red-300" };
       default:
         return { emoji: "🎯", text: "Correct Answer", color: "text-green-300" };
     }
@@ -93,10 +91,6 @@ const GamePlayScreen = ({
               <div className="flex justify-between items-center">
                 <span>🎤 Artist Name:</span>
                 <span className="font-bold text-orange-200">600 pts</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>📝 Song Lyrics:</span>
-                <span className="font-bold text-red-200">300 pts</span>
               </div>
             </div>
           </div>
@@ -312,7 +306,7 @@ const GamePlayScreen = ({
                       type="text"
                       value={guess}
                       onChange={(e) => onGuessChange(e.target.value)}
-                      placeholder="Song name, artist, or lyrics..."
+                      placeholder="Song name or artist..."
                     />
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-purple-300">
                       🎵
@@ -321,8 +315,7 @@ const GamePlayScreen = ({
 
                   {/* Hint Text */}
                   <div className="text-center text-purple-200 text-sm">
-                    💡 You can guess the song name, artist name, or lyrics from
-                    the song
+                    💡 You can guess the song name or artist name
                   </div>
 
                   {/* Action Buttons */}

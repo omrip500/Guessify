@@ -86,7 +86,6 @@ export async function processGameResults({
     let totalAnswerCount = 0;
     let songTitleCount = 0;
     let artistCount = 0;
-    let lyricsCount = 0;
 
     // allPlayerAnswers[username] is accumulated across songs
     // Each entry: { answer, result: { type, isCorrect, score, matchedText } }
@@ -96,7 +95,6 @@ export async function processGameResults({
         correctCount++;
         if (songAnswers.answerType === "songTitle") songTitleCount++;
         else if (songAnswers.answerType === "artist") artistCount++;
-        else if (songAnswers.answerType === "lyrics") lyricsCount++;
       }
     }
 
@@ -129,7 +127,6 @@ export async function processGameResults({
     stats.totalAnswers += totalAnswerCount;
     stats.songTitleGuesses += songTitleCount;
     stats.artistGuesses += artistCount;
-    stats.lyricsGuesses += lyricsCount;
 
     // Streaks (got at least 1 correct = streak continues)
     if (correctCount > 0) {

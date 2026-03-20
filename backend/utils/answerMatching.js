@@ -42,20 +42,6 @@ export async function analyzeAnswer(userAnswer, song, timeTaken, maxTime) {
     };
   }
 
-  // בדיקת מילים מהשיר (ניקוד נמוך)
-  const lyricsMatch = await checkLyrics(normalizedUserAnswer, song);
-  if (lyricsMatch.isMatch) {
-    const score = calculateScore(300, timeTaken, maxTime); // ניקוד בסיס נמוך
-    return {
-      type: "lyrics",
-      isCorrect: true,
-      score,
-      matchedText: lyricsMatch.matchedText,
-      similarity: lyricsMatch.similarity,
-      explanation: lyricsMatch.explanation || "Traditional matching algorithm",
-    };
-  }
-
   // אם לא נמצא התאמה
   return {
     type: "none",
@@ -418,91 +404,6 @@ function generatePhoneticVariations(name) {
 }
 
 /**
- * בדיקת התאמה למילים מהשיר - בדיקה ישירה מול מילות השיר שהמשתמש הוסיף (ללא AI)
- */
-async function checkLyrics(userAnswer, song) {
-  const songName = song.title || song.trackName || "Unknown Song";
-  console.log(`🎼 Checking lyrics for song: ${songName}`);
-  console.log(`🎼 User answer: "${userAnswer}"`);
-
-  // בדיקה אם יש מילות שיר שהמשתמש הוסיף
-  const fullLyrics = song.fullLyrics || song.lyrics || "";
-
-  if (!fullLyrics || fullLyrics.trim() === "") {
-    console.log(
-      `⚠️ No lyrics provided for song "${songName}" - cannot check lyrics match`
-    );
-    return {
-      isMatch: false,
-      similarity: 0,
-      matchedText: "",
-      explanation: "No lyrics provided for this song",
-    };
-  }
-
-  // נרמול הטקסט
-  const normalizedUserAnswer = normalizeText(userAnswer);
-  const normalizedLyrics = normalizeText(fullLyrics);
-
-  console.log(
-    `🔍 Checking if "${normalizedUserAnswer}" appears in song lyrics`
-  );
-
-  // בדיקה ישירה אם המילים מופיעות במילות השיר
-  if (normalizedLyrics.includes(normalizedUserAnswer)) {
-    console.log(
-      `✅ Found exact lyrics match: "${userAnswer}" in song "${songName}"`
-    );
-    return {
-      isMatch: true,
-      similarity: 1.0,
-      matchedText: userAnswer,
-      explanation: "Found exact match in song lyrics",
-    };
-  }
-
-  // בדיקה של מילים בודדות (לפחות 3 תווים)
-  const userWords = normalizedUserAnswer
-    .split(/\s+/)
-    .filter((word) => word.length >= 3);
-  const matchedWords = [];
-
-  for (const word of userWords) {
-    if (normalizedLyrics.includes(word)) {
-      matchedWords.push(word);
-    }
-  }
-
-  // אם נמצאו מילים תואמות
-  if (matchedWords.length > 0) {
-    const matchRatio = matchedWords.length / userWords.length;
-
-    // דרישה לפחות 60% מהמילים תואמות
-    if (matchRatio >= 0.6) {
-      console.log(
-        `✅ Found partial lyrics match: ${matchedWords.length}/${userWords.length} words matched in song "${songName}"`
-      );
-      return {
-        isMatch: true,
-        similarity: matchRatio,
-        matchedText: matchedWords.join(" "),
-        explanation: `Found ${matchedWords.length} matching words in song lyrics`,
-      };
-    }
-  }
-
-  console.log(
-    `❌ No lyrics match found for "${userAnswer}" in song "${songName}"`
-  );
-  return {
-    isMatch: false,
-    similarity: 0,
-    matchedText: "",
-    explanation: "No matching words found in song lyrics",
-  };
-}
-
-/**
  * מציאת ההתאמה הטובה ביותר מתוך רשימת אפשרויות - משופר עם אלגוריתמים נוספים
  */
 function findBestMatch(userAnswer, options) {
@@ -598,13 +499,11 @@ export function getAnswerTypeMessage(answerResult, language = "he") {
     he: {
       songTitle: "זיהה את שם השיר",
       artist: "זיהה את שם הזמר/להקה",
-      lyrics: "זיהה מילים מהשיר",
       none: "לא זיהה",
     },
     en: {
       songTitle: "Identified the song title",
       artist: "Identified the artist/band",
-      lyrics: "Identified lyrics from the song",
       none: "Did not identify",
     },
   };

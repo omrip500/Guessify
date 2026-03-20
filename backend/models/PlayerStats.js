@@ -24,7 +24,6 @@ const playerStatsSchema = new mongoose.Schema(
     totalAnswers: { type: Number, default: 0 },
     songTitleGuesses: { type: Number, default: 0 },
     artistGuesses: { type: Number, default: 0 },
-    lyricsGuesses: { type: Number, default: 0 },
 
     // Streaks
     currentStreak: { type: Number, default: 0 },

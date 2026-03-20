@@ -65,7 +65,6 @@ describe('Game Events Socket.IO', () => {
           artist: 'Test Artist',
           correctAnswer: 'Test Song',
           correctAnswers: ['Test Song'],
-          fullLyrics: 'These are test lyrics',
           previewUrl: 'https://example.com/preview.mp3',
           artworkUrl: 'https://example.com/artwork.jpg'
         }

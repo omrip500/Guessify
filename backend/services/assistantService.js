@@ -286,7 +286,6 @@ function summarizeToolResult(toolName, result) {
           songs: result.songs.map((s) => ({
             title: s.title,
             artist: s.artist,
-            hasLyrics: s.hasLyrics,
           })),
         });
       }

@@ -200,7 +200,6 @@ const PlayerAnswersScreen = ({
       ([_, data]) => data.answerType === "songTitle"
     ),
     artist: answersArray.filter(([_, data]) => data.answerType === "artist"),
-    lyrics: answersArray.filter(([_, data]) => data.answerType === "lyrics"),
     none: answersArray.filter(([_, data]) => data.answerType === "none"),
   };
 
@@ -210,8 +209,6 @@ const PlayerAnswersScreen = ({
         return "🎵";
       case "artist":
         return "🎤";
-      case "lyrics":
-        return "📝";
       default:
         return "❌";
     }
@@ -223,8 +220,6 @@ const PlayerAnswersScreen = ({
         return "from-green-500 to-emerald-600";
       case "artist":
         return "from-blue-500 to-indigo-600";
-      case "lyrics":
-        return "from-purple-500 to-violet-600";
       default:
         return "from-gray-400 to-gray-500";
     }
@@ -342,38 +337,6 @@ const PlayerAnswersScreen = ({
                       "{data.answer}"
                     </p>
                     <p className="text-xs text-blue-600 font-semibold">
-                      +{data.score} נקודות
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Lyrics Answers */}
-          {groupedAnswers.lyrics.length > 0 && (
-            <div className="bg-gradient-to-r from-purple-100 to-violet-100 rounded-2xl p-6 border border-purple-200">
-              <h3 className="text-xl font-bold text-purple-800 mb-4 flex items-center justify-center gap-2">
-                📝 זיהו מילים מהשיר
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {groupedAnswers.lyrics.map(([username, data]) => (
-                  <div
-                    key={username}
-                    className="bg-white/80 rounded-xl p-4 border border-purple-300"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">
-                        {playerEmojis[username] || "🎮"}
-                      </span>
-                      <span className="font-bold text-purple-800">
-                        {username}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      "{data.answer}"
-                    </p>
-                    <p className="text-xs text-purple-600 font-semibold">
                       +{data.score} נקודות
                     </p>
                   </div>

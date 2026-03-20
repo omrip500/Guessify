@@ -22,7 +22,6 @@ export const getMyStats = asyncHandler(async (req, res) => {
       totalAnswers: 0,
       songTitleGuesses: 0,
       artistGuesses: 0,
-      lyricsGuesses: 0,
       currentStreak: 0,
       bestStreak: 0,
       xp: 0,
@@ -157,7 +156,7 @@ export const getUserStats = asyncHandler(async (req, res) => {
 
   const stats = await PlayerStats.findOne({ userId });
 
-  const s = stats || { xp: 0, totalScore: 0, gamesPlayed: 0, gamesWon: 0, podiumFinishes: 0, correctAnswers: 0, totalAnswers: 0, bestScore: 0, bestStreak: 0, currentStreak: 0, songTitleGuesses: 0, artistGuesses: 0, lyricsGuesses: 0 };
+  const s = stats || { xp: 0, totalScore: 0, gamesPlayed: 0, gamesWon: 0, podiumFinishes: 0, correctAnswers: 0, totalAnswers: 0, bestScore: 0, bestStreak: 0, currentStreak: 0, songTitleGuesses: 0, artistGuesses: 0 };
   const level = calculateLevel(s.xp || 0);
 
   // Check friendship status between current user and viewed user

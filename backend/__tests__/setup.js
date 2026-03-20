@@ -44,7 +44,6 @@ global.testUtils = {
         artist: 'Test Artist',
         correctAnswer: 'Test Song',
         correctAnswers: ['Test Song'],
-        fullLyrics: 'These are test lyrics',
         previewUrl: 'https://example.com/preview.mp3',
         artworkUrl: 'https://example.com/artwork.jpg'
       }
@@ -61,7 +60,6 @@ global.testUtils = {
     artist: 'Test Artist',
     correctAnswer: 'Test Song',
     correctAnswers: ['Test Song'],
-    fullLyrics: 'These are test lyrics for the song',
     previewUrl: 'https://example.com/preview.mp3',
     artworkUrl: 'https://example.com/artwork.jpg',
     trackId: '12345',

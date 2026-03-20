@@ -9,7 +9,6 @@ describe("answerMatching", () => {
     artist: "דני סנדרסון",
     correctAnswer: "שיר המכולת",
     correctAnswers: ["שיר המכולת", "שיר הכולת"],
-    fullLyrics: "אני הולך למכולת לקנות חלב ולחם בבוקר מוקדם כשהשמש זורחת",
     previewUrl: "https://example.com/preview.mp3",
     artworkUrl: "https://example.com/artwork.jpg",
   };
@@ -41,15 +40,6 @@ describe("answerMatching", () => {
       expect(result.isCorrect).toBe(true);
       expect(result.score).toBeGreaterThan(0);
       expect(result.matchedText).toBe("דני סנדרסון");
-    });
-
-    test("should correctly identify lyrics match", async () => {
-      const result = await analyzeAnswer("למכולת", mockSong, 5000, 15000);
-
-      expect(result.type).toBe("lyrics");
-      expect(result.isCorrect).toBe(true);
-      expect(result.score).toBeGreaterThan(0);
-      expect(result.similarity).toBeGreaterThan(0);
     });
 
     test("should handle case insensitive matching", async () => {
@@ -101,22 +91,9 @@ describe("answerMatching", () => {
     test("should handle empty user answer", async () => {
       const result = await analyzeAnswer("", mockSong, 5000, 15000);
 
-      expect(result.type).toBe("lyrics"); // Empty string matches lyrics check
-      expect(result.isCorrect).toBe(true);
-      expect(result.score).toBeGreaterThan(0);
-    });
-
-    test("should handle song without lyrics", async () => {
-      const songWithoutLyrics = { ...mockSong, fullLyrics: "" };
-      const result = await analyzeAnswer(
-        "למכולת",
-        songWithoutLyrics,
-        5000,
-        15000
-      );
-
       expect(result.type).toBe("none");
       expect(result.isCorrect).toBe(false);
+      expect(result.score).toBe(0);
     });
   });
 
@@ -131,12 +108,6 @@ describe("answerMatching", () => {
       const answerResult = { type: "artist" };
       const message = getAnswerTypeMessage(answerResult, "he");
       expect(message).toContain("שם הזמר");
-    });
-
-    test("should return correct message for lyrics type", () => {
-      const answerResult = { type: "lyrics" };
-      const message = getAnswerTypeMessage(answerResult, "he");
-      expect(message).toContain("מילים מהשיר");
     });
 
     test("should return correct message for none type", () => {

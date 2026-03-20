@@ -273,7 +273,6 @@ export async function executeTool(userId, toolName, args, searchCache = []) {
           title: s.title,
           artist: s.artist,
           trackId: s.trackId,
-          hasLyrics: !!(s.lyrics || s.fullLyrics),
         })),
         createdAt: game.createdAt,
         updatedAt: game.updatedAt,

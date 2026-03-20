@@ -312,7 +312,7 @@ const OnlineGamePage = () => {
       if (scores) { setLiveScores(scores); liveScoresRef.current = scores; }
       // Someone answered correctly - show notification
       if (correctUser !== username) {
-        const typeLabel = answerType === "songTitle" ? "song name" : answerType === "artist" ? "artist" : answerType === "lyrics" ? "lyrics" : "answer";
+        const typeLabel = answerType === "songTitle" ? "song name" : answerType === "artist" ? "artist" : "answer";
         toast.info(`${correctUser} guessed the ${typeLabel}! +${score} pts`, { autoClose: 2500 });
       }
     });

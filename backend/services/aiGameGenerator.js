@@ -18,7 +18,7 @@ function getOpenAIClient() {
  * 1. AI interprets the prompt → generates iTunes search queries + game metadata
  * 2. Search iTunes in parallel for all queries
  * 3. AI selects the best songs from all results
- * 4. Create game in DB with lyrics enrichment
+ * 4. Create game in DB
  */
 export async function generateGameFromPrompt(userId, prompt) {
   const openai = getOpenAIClient();
@@ -66,7 +66,7 @@ export async function generateGameFromPrompt(userId, prompt) {
     );
   }
 
-  // Step 5: Process songs (normalize artist names, song titles, fetch lyrics)
+  // Step 5: Process songs (normalize artist names, song titles)
   const processedSongs = await processSongs(selectedSongs);
 
   // Step 6: Localize game title & description (same logic as regular assistant)

@@ -1,7 +1,5 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Game from "../models/Game.js";
-import { fetchLyricsFromGenius } from "../services/lyricsService.js";
-import { extractKeywordsFromLyrics } from "../services/lyricsDatabaseService.js";
 
 // @desc    Create a new game (with song data from iTunes API)
 // @route   POST /api/games
@@ -52,66 +50,29 @@ export const createGame = asyncHandler(async (req, res) => {
   console.log("✅ Valid guess time limit:", validGuessTimeLimit);
   console.log("✅ Valid guess input method:", validGuessInputMethod);
 
-  // וידוא שכל שיר מכיל את הנתונים הנדרשים + קבלת מילות השיר
-  console.log(`🎵 Processing ${songs.length} songs and fetching lyrics...`);
-  const validatedSongs = await Promise.all(
-    songs.map(async (song, index) => {
-      console.log(
-        `🎵 Processing song ${index + 1}/${songs.length}: "${song.title}" by "${
-          song.artist
-        }"`
-      );
+  // וידוא שכל שיר מכיל את הנתונים הנדרשים
+  console.log(`🎵 Processing ${songs.length} songs...`);
+  const validatedSongs = songs.map((song, index) => {
+    console.log(
+      `🎵 Processing song ${index + 1}/${songs.length}: "${song.title}" by "${
+        song.artist
+      }"`
+    );
 
-      const songData = {
-        title: song.title || "Unknown Title",
-        correctAnswer: song.correctAnswer || song.title || "Unknown Title",
-        correctAnswers: song.correctAnswers || [
-          song.correctAnswer || song.title || "Unknown Title",
-        ],
-        artist: song.artist || "Unknown Artist",
-        previewUrl: song.previewUrl || "",
-        artworkUrl: song.artworkUrl || "",
-        trackId: song.trackId || "",
-        lyrics: "", // נתחיל עם ריק
-        lyricsKeywords: [], // נתחיל עם ריק
-        fullLyrics: song.fullLyrics || "", // מילות השיר המלאות שהמשתמש הוסיף
-      };
+    return {
+      title: song.title || "Unknown Title",
+      correctAnswer: song.correctAnswer || song.title || "Unknown Title",
+      correctAnswers: song.correctAnswers || [
+        song.correctAnswer || song.title || "Unknown Title",
+      ],
+      artist: song.artist || "Unknown Artist",
+      previewUrl: song.previewUrl || "",
+      artworkUrl: song.artworkUrl || "",
+      trackId: song.trackId || "",
+    };
+  });
 
-      // ניסיון לקבל מילות שיר מ-Genius API
-      try {
-        const lyrics = await fetchLyricsFromGenius(
-          songData.trackId,
-          songData.title,
-          songData.artist
-        );
-        if (lyrics) {
-          songData.lyrics = lyrics;
-          songData.lyricsKeywords = extractKeywordsFromLyrics(lyrics);
-          console.log(
-            `✅ Found lyrics for: "${songData.title}" by "${songData.artist}" (${songData.lyricsKeywords.length} keywords)`
-          );
-        } else {
-          console.log(
-            `❌ No lyrics found for: ${songData.title} by ${songData.artist}`
-          );
-        }
-      } catch (error) {
-        console.log(
-          `⚠️ Error fetching lyrics for ${songData.title}:`,
-          error.message
-        );
-      }
-
-      return songData;
-    })
-  );
-
-  const songsWithLyrics = validatedSongs.filter(
-    (song) => song.lyrics && song.lyrics.length > 0
-  );
-  console.log(
-    `✅ Finished processing all songs. ${songsWithLyrics.length}/${validatedSongs.length} songs have lyrics.`
-  );
+  console.log(`✅ Finished processing all ${validatedSongs.length} songs.`);
 
   const game = new Game({
     title,
@@ -162,19 +123,6 @@ export const getGameById = asyncHandler(async (req, res) => {
     songsCount: game.songs.length,
   });
 
-  // בדיקה של מילות השיר בשירים
-  console.log(
-    `🔍 Loading game ${req.params.id} with songs:`,
-    game.songs.map((song) => ({
-      title: song.title,
-      hasFullLyrics: !!song.fullLyrics,
-      fullLyricsLength: song.fullLyrics ? song.fullLyrics.length : 0,
-      fullLyricsPreview: song.fullLyrics
-        ? song.fullLyrics.substring(0, 50) + "..."
-        : "No lyrics",
-    }))
-  );
-
   // Check if the user is the owner of the game
   if (game.createdBy.toString() !== req.user._id.toString()) {
     res.status(403);
@@ -210,21 +158,6 @@ export const updateGame = asyncHandler(async (req, res) => {
     typeof guessTimeLimit
   );
 
-  // בדיקה של מילות השיר שמתקבלות מהלקוח
-  if (songs && songs.length > 0) {
-    console.log(
-      `🔍 Received songs from client:`,
-      songs.map((song) => ({
-        title: song.title,
-        hasFullLyrics: !!song.fullLyrics,
-        fullLyricsLength: song.fullLyrics ? song.fullLyrics.length : 0,
-        fullLyricsPreview: song.fullLyrics
-          ? song.fullLyrics.substring(0, 50) + "..."
-          : "No lyrics",
-      }))
-    );
-  }
-
   const game = await Game.findById(req.params.id);
 
   if (!game) {
@@ -246,80 +179,28 @@ export const updateGame = asyncHandler(async (req, res) => {
       validatedSongs = [];
     } else {
       console.log(`🎵 Processing ${songs.length} songs for update...`);
-      validatedSongs = await Promise.all(
-        songs.map(async (song, index) => {
-          console.log(
-            `🎵 Processing song ${index + 1}/${songs.length}: "${
-              song.title
-            }" by "${song.artist}"`
-          );
+      validatedSongs = songs.map((song, index) => {
+        console.log(
+          `🎵 Processing song ${index + 1}/${songs.length}: "${
+            song.title
+          }" by "${song.artist}"`
+        );
 
-          // חיפוש שיר קיים במשחק לפי trackId או title+artist
-          const existingSong = game.songs.find(
-            (existingSong) =>
-              (song.trackId && existingSong.trackId === song.trackId) ||
-              (existingSong.title === song.title &&
-                existingSong.artist === song.artist)
-          );
+        return {
+          title: song.title || "Unknown Title",
+          correctAnswer: song.correctAnswer || song.title || "Unknown Title",
+          correctAnswers: song.correctAnswers || [
+            song.correctAnswer || song.title || "Unknown Title",
+          ],
+          artist: song.artist || "Unknown Artist",
+          previewUrl: song.previewUrl || "",
+          artworkUrl: song.artworkUrl || "",
+          trackId: song.trackId || "",
+        };
+      });
 
-          const songData = {
-            title: song.title || "Unknown Title",
-            correctAnswer: song.correctAnswer || song.title || "Unknown Title",
-            correctAnswers: song.correctAnswers || [
-              song.correctAnswer || song.title || "Unknown Title",
-            ],
-            artist: song.artist || "Unknown Artist",
-            previewUrl: song.previewUrl || "",
-            artworkUrl: song.artworkUrl || "",
-            trackId: song.trackId || "",
-            // שמירת מילות השיר הקיימות אם השיר כבר קיים
-            lyrics: existingSong?.lyrics || song.lyrics || "",
-            lyricsKeywords:
-              existingSong?.lyricsKeywords || song.lyricsKeywords || [],
-            // עדיפות למילות השיר החדשות שהמשתמש הוסיף, אחרת השתמש בקיימות
-            fullLyrics: song.fullLyrics || existingSong?.fullLyrics || "",
-          };
-
-          // אם זה שיר חדש (אין lyrics), ננסה לקבל מילות שיר
-          if (!songData.lyrics || songData.lyrics.length === 0) {
-            try {
-              const lyrics = await fetchLyricsFromGenius(
-                songData.trackId,
-                songData.title,
-                songData.artist
-              );
-              if (lyrics) {
-                songData.lyrics = lyrics;
-                songData.lyricsKeywords = extractKeywordsFromLyrics(lyrics);
-                console.log(
-                  `✅ Found lyrics for new song: "${songData.title}" by "${songData.artist}" (${songData.lyricsKeywords.length} keywords)`
-                );
-              } else {
-                console.log(
-                  `❌ No lyrics found for: ${songData.title} by ${songData.artist}`
-                );
-              }
-            } catch (error) {
-              console.log(
-                `⚠️ Error fetching lyrics for ${songData.title}:`,
-                error.message
-              );
-            }
-          } else {
-            console.log(
-              `✅ Using existing lyrics for: "${songData.title}" by "${songData.artist}" (${songData.lyricsKeywords.length} keywords)`
-            );
-          }
-
-          return songData;
-        })
-      );
-
-      const songsWithLyrics = validatedSongs.filter(
-        (song) => song.lyrics && song.lyrics.length > 0
-      );
       console.log(
-        `✅ Finished processing songs for update. ${songsWithLyrics.length}/${validatedSongs.length} songs have lyrics.`
+        `✅ Finished processing ${validatedSongs.length} songs for update.`
       );
     }
   }
@@ -353,19 +234,6 @@ export const updateGame = asyncHandler(async (req, res) => {
   console.log(
     "💾 Game saved with guess time limit:",
     updatedGame.guessTimeLimit
-  );
-
-  // בדיקה של מילות השיר שנשמרו
-  console.log(
-    `🔍 Saved game with songs:`,
-    updatedGame.songs.map((song) => ({
-      title: song.title,
-      hasFullLyrics: !!song.fullLyrics,
-      fullLyricsLength: song.fullLyrics ? song.fullLyrics.length : 0,
-      fullLyricsPreview: song.fullLyrics
-        ? song.fullLyrics.substring(0, 50) + "..."
-        : "No lyrics",
-    }))
   );
 
   res.json(updatedGame);
@@ -571,94 +439,6 @@ export const getAnalytics = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update lyrics for existing games that don't have them
-// @route   POST /api/games/update-lyrics
-// @access  Private
-export const updateLyricsForExistingGames = asyncHandler(async (req, res) => {
-  console.log("🎵 Starting lyrics update for existing games...");
-
-  try {
-    // מציאת כל המשחקים של המשתמש
-    const userGames = await Game.find({ createdBy: req.user._id });
-    console.log(`📊 Found ${userGames.length} games for user ${req.user._id}`);
-
-    let updatedGamesCount = 0;
-    let updatedSongsCount = 0;
-
-    for (const game of userGames) {
-      let gameUpdated = false;
-      const updatedSongs = [];
-
-      for (const song of game.songs) {
-        // בדיקה אם השיר חסר מילות שיר
-        if (
-          !song.lyrics ||
-          song.lyrics.length === 0 ||
-          !song.lyricsKeywords ||
-          song.lyricsKeywords.length === 0
-        ) {
-          console.log(
-            `🎵 Updating lyrics for song: "${song.title}" by "${song.artist}"`
-          );
-
-          try {
-            const lyrics = await fetchLyricsFromGenius(song.title, song.artist);
-            if (lyrics) {
-              song.lyrics = lyrics;
-              song.lyricsKeywords = extractKeywordsFromLyrics(lyrics);
-              gameUpdated = true;
-              updatedSongsCount++;
-              console.log(
-                `✅ Updated lyrics for: "${song.title}" by "${song.artist}" (${song.lyricsKeywords.length} keywords)`
-              );
-            } else {
-              console.log(
-                `❌ No lyrics found for: "${song.title}" by "${song.artist}"`
-              );
-            }
-          } catch (error) {
-            console.log(
-              `⚠️ Error fetching lyrics for "${song.title}":`,
-              error.message
-            );
-          }
-        } else {
-          console.log(
-            `✅ Song already has lyrics: "${song.title}" by "${song.artist}"`
-          );
-        }
-
-        updatedSongs.push(song);
-      }
-
-      // שמירת המשחק אם עודכן
-      if (gameUpdated) {
-        game.songs = updatedSongs;
-        await game.save();
-        updatedGamesCount++;
-        console.log(`💾 Updated game: "${game.title}"`);
-      }
-    }
-
-    console.log(
-      `✅ Lyrics update completed. Updated ${updatedGamesCount} games and ${updatedSongsCount} songs.`
-    );
-
-    res.json({
-      message: "Lyrics update completed successfully",
-      updatedGames: updatedGamesCount,
-      updatedSongs: updatedSongsCount,
-      totalGames: userGames.length,
-    });
-  } catch (error) {
-    console.error("❌ Error updating lyrics:", error);
-    res.status(500).json({
-      message: "Failed to update lyrics",
-      error: error.message,
-    });
-  }
-});
-
 // @desc    Get all public games (for online lobby)
 // @route   GET /api/games/public
 // @access  Public (no auth required)
@@ -684,68 +464,3 @@ export const getPublicGames = asyncHandler(async (req, res) => {
   res.json(gamesWithInfo);
 });
 
-// @desc    Fetch lyrics for a specific song
-// @route   POST /api/games/fetch-lyrics
-// @access  Private
-export const fetchSongLyrics = asyncHandler(async (req, res) => {
-  console.log("🎵 Fetch lyrics endpoint hit!");
-
-  const { title, artist } = req.body;
-
-  console.log(`🎵 Fetching lyrics for: "${title}" by "${artist}"`);
-
-  if (!title || !artist) {
-    res.status(400).json({
-      message: "Song title and artist are required",
-      success: false,
-    });
-    return;
-  }
-
-  try {
-    // חיפוש מילות השיר
-    const lyrics = await fetchLyricsFromGenius(title, artist);
-
-    if (lyrics) {
-      // חילוץ מילות מפתח מהמילות
-      const lyricsKeywords = extractKeywordsFromLyrics(lyrics);
-
-      console.log(
-        `✅ Found lyrics for: "${title}" by "${artist}" (${lyrics.length} characters, ${lyricsKeywords.length} keywords)`
-      );
-
-      res.json({
-        success: true,
-        lyrics: lyrics,
-        lyricsKeywords: lyricsKeywords,
-        message: "Lyrics found successfully",
-      });
-    } else {
-      console.log(`❌ No lyrics found for: "${title}" by "${artist}"`);
-
-      res.json({
-        success: false,
-        lyrics: null,
-        lyricsKeywords: [],
-        message:
-          "No lyrics found on the internet. Please copy and paste the lyrics from the internet manually.",
-        userAction: "manual_input_required",
-      });
-    }
-  } catch (error) {
-    console.error(
-      `❌ Error fetching lyrics for "${title}" by "${artist}":`,
-      error.message
-    );
-
-    res.status(500).json({
-      success: false,
-      lyrics: null,
-      lyricsKeywords: [],
-      message:
-        "Error searching for lyrics. Please try again or paste the lyrics manually.",
-      userAction: "manual_input_required",
-      error: error.message,
-    });
-  }
-});

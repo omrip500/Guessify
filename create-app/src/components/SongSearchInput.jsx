@@ -13,12 +13,9 @@ import {
   FaGripVertical,
   FaEdit,
   FaCheck,
-  FaFileAlt,
   FaUser,
 } from "react-icons/fa";
 import { useLazySearchSongsQuery } from "../slices/gamesApiSlice";
-// Removed lyricsApiSlice imports - no more auto-searching
-import LyricsInputModal from "./LyricsInput/LyricsInputModal";
 import {
   DndContext,
   closestCenter,
@@ -44,9 +41,6 @@ const SortableSongItem = React.memo(
     onRemove,
     onEdit,
     onEditArtist,
-    onEditLyrics,
-    onFetchLyrics,
-    isFetchingLyrics,
   }) => {
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [isEditingArtist, setIsEditingArtist] = React.useState(false);
@@ -253,19 +247,6 @@ const SortableSongItem = React.memo(
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onEditLyrics(index);
-                }}
-                className="text-green-600 hover:text-green-800 p-1.5 sm:p-2"
-                title="Edit lyrics manually"
-              >
-                <FaFileAlt size={14} />
-              </button>
-              {/* Removed auto-fetch lyrics button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
                   onRemove(index);
                 }}
                 className="text-red-500 hover:text-red-700 p-1.5 sm:p-2"
@@ -292,21 +273,7 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
   const audioRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  // State for lyrics editing modal
-  const [showLyricsModal, setShowLyricsModal] = useState(false);
-  const [editingLyricsIndex, setEditingLyricsIndex] = useState(null);
-  const [editingLyrics, setEditingLyrics] = useState("");
-
-  // State for lyrics fetching - removed auto-search functionality
-
-  // State for lyrics input modal
-  const [showLyricsInputModal, setShowLyricsInputModal] = useState(false);
-  const [currentSongForLyrics, setCurrentSongForLyrics] = useState(null);
-
   const [searchSongs, { isLoading }] = useLazySearchSongsQuery();
-  // Removed fetchSongLyrics - no more auto-searching
-  // Removed searchLyricsInDatabase - no more auto-searching
-  // Removed addLyricsToDatabase - no more auto-searching
 
   // הגדרת סנסורים לגרירה - מותאמים לביצועים טובים יותר
   const sensors = useSensors(
@@ -467,185 +434,9 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
     return [...new Set(answers)].filter((answer) => answer.length > 0);
   };
 
-  // פונקציה לחיפוש מילות שיר במאגר
-  // Removed fetchLyricsForSong function - no more auto-searching for lyrics
-
-  // בחירת שיר - ללא חיפוש מילות שיר אוטומטי
+  // בחירת שיר
   const selectSong = async (song) => {
     const correctAnswers = generateCorrectAnswers(
-      song.trackName,
-      song.artistName
-    );
-
-    // יצירת מילות מפתח מהשיר עם מילות מפתח ידניות לשירים מסוימים
-    const generateLyricsKeywords = (trackName, artistName) => {
-      const keywords = [];
-
-      // מילות מפתח ידניות לשירים מסוימים
-      const manualLyrics = {
-        "צליל מכוון": [
-          "בואי",
-          "הנה",
-          "את",
-          "המילים",
-          "אל",
-          "הקצב",
-          "מכוון",
-          "צליל",
-          "מוזיקה",
-          "שיר",
-        ],
-        "שיר לשלום": ["שלום", "עולם", "אהבה", "חלום", "תקווה"],
-        "בשנה הבאה": ["בשנה", "הבאה", "ירושלים", "שלום", "חג"],
-        "יש בי אהבה": ["יש", "בי", "אהבה", "לב", "רגש"],
-        "אני ואתה": ["אני", "ואתה", "נשנה", "עולם", "יחד"],
-        "לו יהי": ["לו", "יהי", "שלום", "עולם", "אהבה"],
-        "הכל עובר": ["הכל", "עובר", "חולף", "זמן", "חיים"],
-        "ילדה שלי": ["ילדה", "שלי", "אהובה", "יפה", "חמודה"],
-        אבא: ["אבא", "אהבה", "משפחה", "בית", "ילדות"],
-        אמא: ["אמא", "אהבה", "משפחה", "בית", "חום"],
-        "ירושלים של זהב": ["ירושלים", "זהב", "עיר", "קדושה", "יפה"],
-        "הנה בא השלום": ["הנה", "בא", "השלום", "שמח", "טוב"],
-        שמח: ["שמח", "שמחה", "חגיגה", "ריקוד", "כיף"],
-        "חבר שלי": ["חבר", "שלי", "ידידות", "אהבה", "יחד"],
-        "בוקר טוב": ["בוקר", "טוב", "שמש", "יום", "חדש"],
-        "לילה טוב": ["לילה", "טוב", "ירח", "כוכבים", "חלומות"],
-        "אני רוצה": ["אני", "רוצה", "חלום", "משאלה", "תקווה"],
-        "תן לי": ["תן", "לי", "בקשה", "רצון", "צורך"],
-        "come on eileen": ["come", "on", "eileen", "dance", "party"],
-        "dancing queen": ["dancing", "queen", "dance", "music", "party"],
-        "bohemian rhapsody": ["bohemian", "rhapsody", "queen", "rock", "opera"],
-        imagine: ["imagine", "peace", "world", "love", "hope"],
-        yesterday: ["yesterday", "love", "gone", "troubles", "far"],
-        "hey jude": ["hey", "jude", "dont", "afraid", "better"],
-        "let it be": ["let", "it", "be", "mother", "mary", "wisdom"],
-        "hotel california": ["hotel", "california", "eagles", "check", "out"],
-        "stairway to heaven": [
-          "stairway",
-          "heaven",
-          "lady",
-          "gold",
-          "glitters",
-        ],
-        "sweet child o mine": [
-          "sweet",
-          "child",
-          "mine",
-          "eyes",
-          "blue",
-          "skies",
-        ],
-        "smells like teen spirit": [
-          "smells",
-          "like",
-          "teen",
-          "spirit",
-          "nirvana",
-        ],
-        "billie jean": ["billie", "jean", "not", "my", "lover"],
-        thriller: ["thriller", "night", "monster", "dance", "scary"],
-        "beat it": ["beat", "it", "just", "beat", "it"],
-        "smooth criminal": ["smooth", "criminal", "annie", "you", "okay"],
-        "black or white": ["black", "or", "white", "dont", "matter"],
-        "dont stop believin": [
-          "dont",
-          "stop",
-          "believin",
-          "journey",
-          "feeling",
-        ],
-        "livin on a prayer": ["livin", "on", "a", "prayer", "halfway", "there"],
-        "sweet caroline": ["sweet", "caroline", "good", "times", "never"],
-        "piano man": ["piano", "man", "saturday", "crowd", "melody"],
-        "uptown funk": ["uptown", "funk", "you", "up", "saturday", "night"],
-        "shape of you": ["shape", "of", "you", "love", "body", "crazy"],
-        "someone like you": [
-          "someone",
-          "like",
-          "you",
-          "adele",
-          "never",
-          "mind",
-        ],
-        "rolling in the deep": [
-          "rolling",
-          "in",
-          "the",
-          "deep",
-          "fire",
-          "starting",
-        ],
-        hello: ["hello", "its", "me", "wondering", "after", "years"],
-        despacito: ["despacito", "quiero", "respirar", "cuello", "despacio"],
-      };
-
-      // בדיקה אם יש מילות מפתח ידניות לשיר הזה
-      const normalizedTitle = trackName.toLowerCase().trim();
-
-      // חיפוש במילות מפתח ידניות
-      for (const [songKey, lyricsWords] of Object.entries(manualLyrics)) {
-        if (
-          normalizedTitle.includes(songKey.toLowerCase()) ||
-          songKey.toLowerCase().includes(normalizedTitle)
-        ) {
-          keywords.push(...lyricsWords);
-          break;
-        }
-      }
-
-      // אם לא נמצאו מילות מפתח ידניות, ניצור אוטומטית
-      if (keywords.length === 0) {
-        // הוספת מילים מהשם השיר (ללא מילות קישור)
-        const songWords = trackName
-          .toLowerCase()
-          .replace(/[^\w\s\u0590-\u05FF]/g, " ")
-          .split(/\s+/)
-          .filter(
-            (word) =>
-              word.length > 2 &&
-              ![
-                "the",
-                "and",
-                "or",
-                "but",
-                "in",
-                "on",
-                "at",
-                "to",
-                "for",
-                "of",
-                "with",
-                "by",
-                "את",
-                "של",
-                "על",
-                "אל",
-                "עם",
-                "בין",
-                "אחר",
-                "לפני",
-                "אחרי",
-                "תחת",
-                "מעל",
-              ].includes(word)
-          );
-
-        keywords.push(...songWords);
-
-        // הוספת מילים מהזמר (ללא מילות קישור)
-        const artistWords = artistName
-          .toLowerCase()
-          .replace(/[^\w\s\u0590-\u05FF]/g, " ")
-          .split(/\s+/)
-          .filter((word) => word.length > 2);
-
-        keywords.push(...artistWords);
-      }
-
-      return [...new Set(keywords)]; // הסרת כפילויות
-    };
-
-    const lyricsKeywords = generateLyricsKeywords(
       song.trackName,
       song.artistName
     );
@@ -656,18 +447,10 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
       artist: song.artistName,
       correctAnswer: song.trackName, // התשובה הראשית
       correctAnswers: correctAnswers, // כל התשובות האפשריות
-      lyricsKeywords: lyricsKeywords, // מילות מפתח לניחוש (fallback)
       previewUrl: song.previewUrl,
       artworkUrl: song.artworkUrl100,
       trackId: song.trackId,
-      lyrics: "", // נתחיל עם ריק
-      fullLyrics: "", // נתחיל עם ריק
     };
-
-    // Removed automatic lyrics searching - user will add lyrics manually if needed
-    console.log(
-      `ℹ️ Added song without automatic lyrics search: "${song.trackName}"`
-    );
 
     onSongSelect(songData);
     // לא מוחקים את החיפוש כדי שהמשתמש יוכל להוסיף עוד שירים
@@ -737,87 +520,10 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
     [selectedSongs, onSongSelect]
   );
 
-  // פונקציה לפתיחת modal לעריכת מילות השיר
-  const openLyricsModal = useCallback(
-    (index) => {
-      const song = selectedSongs[index];
-      setEditingLyricsIndex(index);
-      setEditingLyrics(song.lyrics || song.fullLyrics || "");
-      setShowLyricsModal(true);
-    },
-    [selectedSongs]
-  );
-
-  // פונקציה לשמירת מילות השיר
-  const saveLyrics = useCallback(() => {
-    if (editingLyricsIndex !== null) {
-      const updatedSongs = selectedSongs.map((song, i) => {
-        if (i === editingLyricsIndex) {
-          return {
-            ...song,
-            lyrics: editingLyrics,
-            fullLyrics: editingLyrics,
-          };
-        }
-        return song;
-      });
-      onSongSelect(updatedSongs, true);
-    }
-    setShowLyricsModal(false);
-    setEditingLyricsIndex(null);
-    setEditingLyrics("");
-  }, [selectedSongs, onSongSelect, editingLyricsIndex, editingLyrics]);
-
-  // פונקציה לביטול עריכת מילות השיר
-  const cancelLyricsEdit = useCallback(() => {
-    setShowLyricsModal(false);
-    setEditingLyricsIndex(null);
-    setEditingLyrics("");
-  }, []);
-
-  // Removed fetchLyricsForExistingSong function - no more auto-searching for lyrics
-
   // רשימת IDs של השירים - מאופטמת
   const songIds = useMemo(
     () => selectedSongs.map((song) => song.trackId),
     [selectedSongs]
-  );
-
-  // Removed openLyricsInputModal - no more auto-searching
-
-  // פונקציה לטיפול בהוספת מילות שיר למאגר
-  const handleLyricsAdded = useCallback(
-    (lyricsData) => {
-      console.log(`✅ Lyrics added to database:`, lyricsData);
-
-      // עדכון השיר הנוכחי עם המילות החדשות אם הוא קיים ברשימה
-      if (currentSongForLyrics) {
-        const songIndex = selectedSongs.findIndex(
-          (song) =>
-            song.title === currentSongForLyrics.title &&
-            song.artist === currentSongForLyrics.artist
-        );
-
-        if (songIndex !== -1) {
-          const updatedSongs = selectedSongs.map((song, i) => {
-            if (i === songIndex) {
-              return {
-                ...song,
-                lyrics: lyricsData.lyrics,
-                fullLyrics: lyricsData.lyrics,
-                lyricsKeywords: lyricsData.keywords || song.lyricsKeywords,
-              };
-            }
-            return song;
-          });
-          onSongSelect(updatedSongs, true);
-        }
-      }
-
-      // Clear current song for lyrics
-      setCurrentSongForLyrics(null);
-    },
-    [currentSongForLyrics, selectedSongs, onSongSelect]
   );
 
   // פונקציה לניקוי החיפוש
@@ -858,10 +564,6 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
           )}
         </div>
       </div>
-
-      {/* Removed lyrics fetching indicator - no more auto-searching */}
-
-      {/* Removed lyrics message display - no more auto-searching */}
 
       {/* תוצאות חיפוש */}
       {showResults && (
@@ -958,12 +660,10 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
               Selected Songs ({selectedSongs.length})
             </h3>
             <p className="hidden sm:block text-sm text-gray-500 text-right">
-              💡 Drag <FaGripVertical className="inline mx-1" /> to reorder •
+              Drag <FaGripVertical className="inline mx-1" /> to reorder •
               Click <FaEdit className="inline mx-1 text-blue-600" /> to edit
               title • Click <FaUser className="inline mx-1 text-purple-600" />{" "}
-              to edit artist • Click{" "}
-              <FaFileAlt className="inline mx-1 text-green-600" /> to edit
-              lyrics manually
+              to edit artist
             </p>
           </div>
 
@@ -985,9 +685,6 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
                     onRemove={removeSong}
                     onEdit={editSong}
                     onEditArtist={editArtist}
-                    onEditLyrics={openLyricsModal}
-                    onFetchLyrics={null} // Removed auto-fetch functionality
-                    isFetchingLyrics={false} // No more fetching
                   />
                 ))}
               </div>
@@ -996,77 +693,6 @@ const SongSearchInput = ({ onSongSelect, selectedSongs = [] }) => {
         </div>
       )}
 
-      {/* Modal לעריכת מילות השיר */}
-      {showLyricsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
-                Edit Song Lyrics
-              </h3>
-              <button
-                onClick={cancelLyricsEdit}
-                className="text-gray-500 hover:text-gray-700 p-2"
-                title="Close"
-              >
-                <FaTimes size={20} />
-              </button>
-            </div>
-
-            {editingLyricsIndex !== null && (
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>Song:</strong>{" "}
-                  {selectedSongs[editingLyricsIndex]?.title} -{" "}
-                  {selectedSongs[editingLyricsIndex]?.artist}
-                </p>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2">
-                Song Lyrics
-              </label>
-              <textarea
-                value={editingLyrics}
-                onChange={(e) => setEditingLyrics(e.target.value)}
-                placeholder="Paste the song lyrics here..."
-                className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Tip: Copy lyrics from the internet and paste them here for
-                better gameplay
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelLyricsEdit}
-                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveLyrics}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Save Lyrics
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal להוספת מילות שיר למאגר */}
-      <LyricsInputModal
-        isOpen={showLyricsInputModal}
-        onClose={() => {
-          setShowLyricsInputModal(false);
-          setCurrentSongForLyrics(null);
-        }}
-        songData={currentSongForLyrics}
-        onLyricsAdded={handleLyricsAdded}
-      />
     </div>
   );
 };

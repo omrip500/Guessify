@@ -18,7 +18,14 @@
       "Bash(node -e \"import\\(''./services/aiGameGenerator.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
       "Bash(node -e \"import\\(''./routes/aiGameRoutes.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
       "Bash(node -e \"import\\(''./sockets/onlineLobbyEvents.js''\\).then\\(\\(\\) => console.log\\(''OK''\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
-      "Read(//Users/omripeer/Documents/Omri/**)"
+      "Read(//Users/omripeer/Documents/Omri/**)",
+      "Bash(npx create-expo-app@latest guessify-mobile --template blank-typescript)",
+      "Bash(npx expo install @react-navigation/native @react-navigation/bottom-tabs @react-navigation/native-stack react-native-screens react-native-safe-area-context @tanstack/react-query socket.io-client expo-av expo-secure-store expo-haptics expo-linear-gradient react-native-gesture-handler react-native-reanimated)",
+      "Read(//Users/omripeer/.nvm/versions/node/**)",
+      "Bash(command -v fnm)",
+      "Bash(command -v volta)",
+      "Bash(command -v n)",
+      "Bash(brew list node)"
     ]
   }
 }

@@ -179,7 +179,6 @@ describe('Game Model', () => {
             artist: 'Test Artist',
             correctAnswer: 'Test Song',
             correctAnswers: ['Test Song', 'Alternative Title'],
-            fullLyrics: 'These are the full lyrics',
             previewUrl: 'https://example.com/preview.mp3',
             artworkUrl: 'https://example.com/artwork.jpg',
             trackId: '12345'
@@ -195,7 +194,6 @@ describe('Game Model', () => {
       expect(song.artist).toBe('Test Artist');
       expect(song.correctAnswer).toBe('Test Song');
       expect(song.correctAnswers).toEqual(['Test Song', 'Alternative Title']);
-      expect(song.fullLyrics).toBe('These are the full lyrics');
       expect(song.previewUrl).toBe('https://example.com/preview.mp3');
       expect(song.artworkUrl).toBe('https://example.com/artwork.jpg');
       expect(song.trackId).toBe('12345');
@@ -252,8 +250,6 @@ describe('Game Model', () => {
 
       const song = savedGame.songs[0];
       expect(song.artist).toBe('Unknown Artist'); // Default value
-      expect(song.lyrics).toBe(''); // Default value
-      expect(song.fullLyrics).toBe(''); // Default value
       expect(song.previewUrl).toBe(''); // Default value
       expect(song.artworkUrl).toBe(''); // Default value
       expect(song.trackId).toBe(''); // Default value

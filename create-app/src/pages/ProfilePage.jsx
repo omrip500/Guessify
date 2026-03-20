@@ -197,15 +197,6 @@ const ProfilePage = () => {
                     <div className="h-full bg-pink-500 rounded-full" style={{ width: `${s.correctAnswers ? Math.round(((s.artistGuesses || 0) / s.correctAnswers) * 100) : 0}%` }}></div>
                   </div>
                 </div>
-                <div className="p-3 bg-indigo-50 rounded-xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-indigo-700 text-sm font-medium">Lyrics</span>
-                    <span className="text-indigo-800 font-bold">{s.lyricsGuesses || 0}</span>
-                  </div>
-                  <div className="h-2 bg-indigo-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${s.correctAnswers ? Math.round(((s.lyricsGuesses || 0) / s.correctAnswers) * 100) : 0}%` }}></div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
