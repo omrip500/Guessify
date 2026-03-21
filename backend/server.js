@@ -70,8 +70,16 @@ const allowedOrigins =
         "http://localhost:3002",
       ];
 
+// Allow React Native / mobile requests (no origin header)
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all in development; tighten in production if needed
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
 };
@@ -117,11 +125,7 @@ app.use(errorHandler);
 
 // 📡 Socket.IO
 const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    credentials: true,
-  },
+  cors: corsOptions,
 });
 
 socketManager(io);

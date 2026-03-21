@@ -11,9 +11,12 @@ const generateToken = (res, userId) => {
   res.cookie("jwt", token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "None" : "Lax", // ⚠️ כאן התיקון
+    sameSite: isProduction ? "None" : "Lax",
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
+
+  // Return token so it can be included in response body (for mobile clients)
+  return token;
 };
 
 export default generateToken;

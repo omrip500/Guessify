@@ -25,7 +25,21 @@
       "Bash(command -v fnm)",
       "Bash(command -v volta)",
       "Bash(command -v n)",
-      "Bash(brew list node)"
+      "Bash(brew list node)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(brew ls --versions node)",
+      "Bash(npx tsc --noEmit)"
+    ],
+    "additionalDirectories": [
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/constants",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/types",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/services",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/context",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/hooks",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/components/common",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/screens",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile/src/navigation",
+      "/Users/omripeer/Documents/Omri/תואר ראשון במדעי המחשב - מכללת אפקה/שנים א-ג/שנה ג/סמסטר ב/Agile/guessify-mobile"
     ]
   }
 }

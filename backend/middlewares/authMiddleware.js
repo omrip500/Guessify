@@ -5,21 +5,27 @@ import User from "../models/userModel.js";
 export const protect = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Check if cookie is in the request
+  // 1. Check cookie (web clients)
   if (req.cookies && req.cookies.jwt) {
+    token = req.cookies.jwt;
+  }
+
+  // 2. Fallback: Authorization header (mobile clients)
+  if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (token) {
     try {
-      token = req.cookies.jwt;
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.userId).select("-password");
-      next();
+      return next();
     } catch (error) {
       res.status(401);
       throw new Error("Not authorized, token failed");
     }
   }
 
-  if (!token) {
-    res.status(401);
-    throw new Error("Not authorized, no token");
-  }
+  res.status(401);
+  throw new Error("Not authorized, no token");
 });
